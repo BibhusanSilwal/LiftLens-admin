@@ -1,3 +1,4 @@
+"use client"
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Users, Flame, BarChart3 } from 'lucide-react';
 import {
@@ -39,8 +40,8 @@ export default function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">1,234</div>
-            <p className="text-sm text-green-500">12% from last week</p>
+            <div className="text-3xl font-bold">2</div>
+            {/* <p className="text-sm text-green-500">12% from last week</p> */}
           </CardContent>
         </Card>
         <Card className="w-48 bg-gray-900 border-gray-800">
@@ -51,8 +52,8 @@ export default function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">8.5</div>
-            <p className="text-sm text-green-500">5% from last week</p>
+            <div className="text-3xl font-bold">0</div>
+            {/* <p className="text-sm text-green-500">5% from last week</p> */}
           </CardContent>
         </Card>
         <Card className="w-48 bg-gray-900 border-gray-800">
@@ -63,8 +64,8 @@ export default function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">45.2K</div>
-            <p className="text-sm text-green-500">8% from last week</p>
+            <div className="text-3xl font-bold">0</div>
+            {/* <p className="text-sm text-green-500">8% from last week</p> */}
           </CardContent>
         </Card>
       </div>
