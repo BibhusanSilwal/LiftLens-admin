@@ -13,17 +13,18 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-
+  console.log(pathname)
   return (
     <div className="w-64 bg-black border-r border-gray-800 h-screen fixed left-0 top-0 p-4">
       <div className="flex items-center space-x-2 mb-8">
-        <img src="/logo.png" alt="LiftLens" className="h-8 w-8" />
-        <span className="text-xl font-bold text-orange-500">LiftLens</span>
+        <img src="/logo.png" alt="LiftLens" className="h-22 w-40" />
+
       </div>
       <nav className="space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname.startsWith(item.href);
+          const isOverview = item.href === '/dashboard';
+          const isActive = isOverview ? pathname === item.href : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
@@ -31,7 +32,7 @@ export function Sidebar() {
               className={cn(
                 'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-orange-500/20 text-orange-500'
+                  ? 'bg-orange-500/20 text-[#dc2626]'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               )}
             >
