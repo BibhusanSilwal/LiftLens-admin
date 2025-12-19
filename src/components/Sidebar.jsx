@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Users, LayoutDashboard, Dumbbell } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -10,10 +10,46 @@ const navItems = [
   { href: '/dashboard/users', label: 'Users', icon: Users },
   { href: '/dashboard/exercises', label: 'Content', icon: Dumbbell },
 ];
+const LOGOUT_URL  = "/api/logout/"
 
 export function Sidebar() {
+  const router = useRouter()
   const pathname = usePathname();
   console.log(pathname)
+
+const logOut = async(e) => {
+  e.preventDefault();
+
+  const requestOptions = {
+      method: "POST",
+      headers:{
+          "Content-Type": "application/json"
+      },
+      body:""
+  }
+  
+  
+  const response = await fetch(LOGOUT_URL, requestOptions)
+  const data = await response.json()
+  if(response.ok){
+      router.replace("/");
+  }
+  else{
+    toast.error("Login Failed", {
+      description: (
+        <span className="text-white">
+          Please enter correct username or password
+        </span>
+      ),
+      style: {
+        background: '#dc2626',  // Red background for whole toast
+        color: 'white',         // White text (affects title primarily)
+        border: '1px solid #b91c1c',  // Darker red border
+      },
+
+    });
+  }
+};
   return (
     <div className="w-64 bg-black border-r border-gray-800 h-screen fixed left-0 top-0 p-4">
       <div className="flex items-center space-x-2 mb-8">
@@ -42,6 +78,9 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <div>
+        <button onClick={logOut}>Logout</button>
+      </div>
     </div>
   );
 }

@@ -1,40 +1,54 @@
-"use client"
-import { useState } from 'react';
-import { Button } from '../../../components/ui/Button';
-import { Card, CardContent, CardHeader } from '../../../components/ui/Card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../../components/ui/dialog';
-import { Input } from '../../../components/ui/input';
-import { Label } from '../../../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
-import { Dumbbell, Eye, Trash2 } from 'lucide-react';
+"use client";
 
-const initialExercises = [
-  { name: 'Incline Dumbell Press', group: 'Chest', difficulty: 'Intermediate', met: 3.8, status: 'Published' },
-  { name: 'Lats Pull Down', group: 'Back', difficulty: 'Advanced', met: 8, status: 'Published' },
-  { name: 'Squats', group: 'Legs', difficulty: 'Beginner', met: 5, status: 'Published' },
-  { name: 'Shoulder Press', group: 'Shoulders', difficulty: 'Intermediate', met: 4.5, status: 'Published' },
-  { name: 'Bicep Curls', group: 'Arms', difficulty: 'Beginner', met: 3.5, status: 'Published' },
-];
+import { useState, useEffect } from "react";
+import { Button } from "../../../components/ui/Button";
+import { Card, CardContent, CardHeader } from "../../../components/ui/Card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../../components/ui/dialog";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { Dumbbell, Eye, Trash2 } from "lucide-react";
 
-const difficultyOptions = ['Beginner', 'Intermediate', 'Advanced'];
-const groupOptions = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms'];
-
-const difficultyColors = {
-  Beginner: 'text-green-500',
-  Intermediate: 'text-yellow-500',
-  Advanced: 'text-orange-500',
-};
+const difficultyOptions = ["beginner", "intermediate", "advanced"];
+const groupOptions = ["chest", "back", "legs", "shoulders", "arms", "core", "full_body"];
+const difficultyColors = { Beginner: "text-green-500", Intermediate: "text-yellow-500", Advanced: "text-orange-500" };
 
 export default function ExercisesPage() {
-  const [exercises, setExercises] = useState(initialExercises);
+  const [exercises, setExercises] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    group: '',
-    difficulty: '',
-    met: '',
+  const [formData, setFormData] = useState({ 
+    name: "", 
+    description: "", 
+    muscle_group: "", 
+    difficulty: "", 
+    met_value: "" 
   });
 
+  // Helper: Capitalize first letter for display
+  const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
+  // ------------------------------
+  // Fetch exercises from API
+  // ------------------------------
+  const fetchExercises = async () => {
+    try {
+      const res = await fetch("/api/exercises");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setExercises(data);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to fetch exercises");
+    }
+  };
+
+  useEffect(() => {
+    fetchExercises();
+  }, []);
+
+  // ------------------------------
+  // Handle form changes
+  // ------------------------------
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -44,26 +58,58 @@ export default function ExercisesPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  // ------------------------------
+  // Add new exercise
+  // ------------------------------
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.name && formData.group && formData.difficulty && formData.met) {
-      const newExercise = {
+    try {
+      const transformedPayload = {
         ...formData,
-        met: parseFloat(formData.met),
-        status: 'Published',
+        description: formData.description || "",
+        difficulty: formData.difficulty.toLowerCase(),
+        muscle_group: formData.muscle_group.toLowerCase(),
+        status: "active",
+        met_value: parseFloat(formData.met_value),
       };
-      setExercises((prev) => [...prev, newExercise]);
-      setFormData({ name: '', group: '', difficulty: '', met: '' });
+
+      const res = await fetch("/api/exercises", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(transformedPayload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to add");
+      setExercises((prev) => [...prev, data]);
+      setFormData({ name: "", description: "", muscle_group: "", difficulty: "", met_value: "" });
       setIsModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Failed to add exercise");
     }
   };
 
-  const handleDelete = (index) => {
-    setExercises((prev) => prev.filter((_, i) => i !== index));
+  // ------------------------------
+  // Delete exercise
+  // ------------------------------
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure?")) return;
+    try {
+      const res = await fetch(`/api/exercises/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      setExercises((prev) => prev.filter((ex) => ex.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete exercise");
+    }
   };
 
+  // ------------------------------
+  // JSX
+  // ------------------------------
   return (
-    <div className="space-y-6 bg-black">
+    <div className="space-y-6 bg-black p-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-white">Exercise Catalog</h1>
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -77,117 +123,89 @@ export default function ExercisesPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="name">Exercise Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="bg-[#1c1c1e] border-[#1c1c1e] text-white"
-                  required
-                />
+                <Input id="name" name="name" value={formData.name} onChange={handleInputChange} className="bg-[#1c1c1e] text-white border-[#1c1c1e]" required />
               </div>
               <div>
-                <Label htmlFor="group">Muscle Group</Label>
-                <Select value={formData.group} onValueChange={(value) => handleSelectChange('group', value)}>
-                  <SelectTrigger className="bg-[#1c1c1e] border-[#1c1c1e] text-white">
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Input id="description" name="description" value={formData.description} onChange={handleInputChange} className="bg-[#1c1c1e] text-white border-[#1c1c1e]" />
+              </div>
+              <div>
+                <Label htmlFor="muscle_group">Muscle Group</Label>
+                <Select value={formData.muscle_group} onValueChange={(value) => handleSelectChange("muscle_group", value)}>
+                  <SelectTrigger className="bg-[#1c1c1e] text-white border-[#1c1c1e]">
                     <SelectValue placeholder="Select a group" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1c1c1e] border-[#1c1c1e] text-white">
-                    {groupOptions.map((group) => (
-                      <SelectItem key={group} value={group} className="text-white">
-                        {group}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="bg-[#1c1c1e] text-white border-[#1c1c1e]">
+                    {groupOptions.map((g) => <SelectItem key={g} value={g}>{capitalize(g)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label htmlFor="difficulty">Difficulty</Label>
-                <Select value={formData.difficulty} onValueChange={(value) => handleSelectChange('difficulty', value)}>
-                  <SelectTrigger className="bg-[#1c1c1e] border-[#1c1c1e] text-white">
+                <Select value={formData.difficulty} onValueChange={(value) => handleSelectChange("difficulty", value)}>
+                  <SelectTrigger className="bg-[#1c1c1e] text-white border-[#1c1c1e]">
                     <SelectValue placeholder="Select difficulty" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1c1c1e] border-[#1c1c1e] text-white">
-                    {difficultyOptions.map((diff) => (
-                      <SelectItem key={diff} value={diff} className="text-white">
-                        {diff}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="bg-[#1c1c1e] text-white border-[#1c1c1e]">
+                    {difficultyOptions.map((d) => <SelectItem key={d} value={d}>{capitalize(d)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="met">MET Value</Label>
-                <Input
-                  id="met"
-                  name="met"
-                  type="number"
-                  step="0.1"
-                  value={formData.met}
-                  onChange={handleInputChange}
-                  className="bg-[#1c1c1e] border-[#1c1c1e] text-white"
-                  required
-                />
+                <Label htmlFor="met_value">MET Value</Label>
+                <Input type="number" step="0.1" id="met_value" name="met_value" value={formData.met_value} onChange={handleInputChange} className="bg-[#1c1c1e] text-white border-[#1c1c1e]" required />
               </div>
               <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-red-600 hover:bg-red-700">
-                  Add Exercise
-                </Button>
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                <Button type="submit" className="bg-red-600 hover:bg-red-700">Add Exercise</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
+
       <Card className="bg-black border-[#1c1c1e]">
-        <CardHeader className="pb-3">
+        <CardHeader>
           <div className="flex items-center space-x-2">
             <Dumbbell className="h-5 w-5 text-red-600" />
             <span className="text-lg font-semibold text-white">Exercises</span>
           </div>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-white">
+            <table className="w-full text-white">
               <thead>
-                <tr className="border-b border-[#1c1c1e]">
-                  <th className="text-left py-3">Exercise Name</th>
-                  <th className="text-left py-3">Muscle Group</th>
-                  <th className="text-left py-3">Difficulty</th>
-                  <th className="text-left py-3">MET Value</th>
-                  <th className="text-left py-3">Status</th>
-                  <th className="text-right py-3">Actions</th>
+                <tr>
+                  <th>Exercise Name</th>
+                  <th>Muscle Group</th>
+                  <th>Difficulty</th>
+                  <th>MET Value</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {exercises.map((exercise, idx) => (
-                  <tr key={idx} className="border-b border-black hover:bg-[#1c1c1e]">
-                    <td className="py-3">{exercise.name}</td>
-                    <td className="py-3">{exercise.group}</td>
-                    <td className={`py-3 ${difficultyColors[exercise.difficulty]}`}>
-                      {exercise.difficulty}
-                    </td>
-                    <td className="py-3">{exercise.met}</td>
-                    <td className="py-3 text-green-500">{exercise.status}</td>
-                    <td className="py-3 text-right">
-                      <div className="flex space-x-2 justify-end">
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-red-600 hover:text-red-500"
-                          onClick={() => handleDelete(idx)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {exercises.map((ex) => {
+                  const diffCap = capitalize(ex.difficulty);
+                  const groupCap = capitalize(ex.muscle_group);
+                  return (
+                    <tr key={ex.id}>
+                      <td>{ex.name}</td>
+                      <td>{groupCap}</td>
+                      <td className={difficultyColors[diffCap]}>{diffCap}</td>
+                      <td>{ex.met_value}</td>
+                      <td className="text-green-500">{ex.status}</td>
+                      <td>
+                        <div className="flex space-x-2">
+                          <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-500" onClick={() => handleDelete(ex.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
