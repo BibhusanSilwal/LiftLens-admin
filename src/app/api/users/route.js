@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getToken } from "@/app/lib/auth";
 
-const BACKEND_URL = "http://127.0.0.1:8000/api/admin/users";
+const API_BASE_URL = (process.env.BACKEND_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
+const BACKEND_URL = `${API_BASE_URL}/admin/users`;
 
 async function proxy(request, url, method = "GET", body = null) {
   const token = await getToken();

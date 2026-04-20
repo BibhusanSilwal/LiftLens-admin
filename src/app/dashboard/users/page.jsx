@@ -34,6 +34,9 @@ export default function UsersPage() {
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   /* Dialog state */
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -71,12 +74,27 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/users?page=${page}&page_size=10`);
+      const params = new URLSearchParams({ page: String(page) });
+      if (searchQuery) {
+        params.set("search", searchQuery);
+      }
+
+      const res = await fetch(`/api/users?${params.toString()}`);
       if (!res.ok) throw new Error();
 
       const data = await res.json();
       setUsers(data.users || []);
-      setTotalPages(Math.ceil((data.total || 0) / 10));
+
+      const apiTotal = Number(data.total) || 0;
+      const apiPageSize = Number(data.page_size) || (data.users?.length || 1);
+      const apiPage = Number(data.page) || page;
+
+      setTotalUsers(apiTotal);
+      setTotalPages(Math.max(1, Math.ceil(apiTotal / apiPageSize)));
+
+      if (apiPage !== page) {
+        setPage(apiPage);
+      }
     } catch {
       toast.error("Failed to load users");
     } finally {
@@ -86,7 +104,13 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, [page]);
+  }, [page, searchQuery]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setPage(1);
+    setSearchQuery(searchInput.trim());
+  };
 
   /* =======================
      CREATE / EDIT
@@ -173,14 +197,28 @@ export default function UsersPage() {
   ======================= */
 
   return (
-    <div className="space-y-6 bg-black p-4">
+    <div className="space-y-6 bg-black">
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-2xl font-bold text-white">User Management</h1>
-        <Button onClick={openCreate} className="bg-red-600">
-          <Plus className="h-4 w-4 mr-2" />
-          Add User
-        </Button>
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
+          <form onSubmit={handleSearchSubmit} className="flex w-full items-center gap-2 sm:w-auto">
+            <Input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search users..."
+              className="w-full text-white sm:w-64"
+            />
+            <Button type="submit" variant="outline" className="border-gray-700 text-white">
+              Search
+            </Button>
+          </form>
+
+          <Button onClick={openCreate} className="bg-red-600 sm:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
+        </div>
       </div>
 
       {/* TABLE */}
@@ -236,6 +274,33 @@ export default function UsersPage() {
               ))}
             </TableBody>
           </Table>
+
+          <div className="flex flex-col gap-3 border-t border-gray-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-400 sm:text-left">
+              Page {page} of {totalPages} {totalUsers > 0 ? `(${totalUsers} users)` : ""}
+            </p>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-gray-700 text-white"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={loading || page <= 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-gray-700 text-white"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={loading || page >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

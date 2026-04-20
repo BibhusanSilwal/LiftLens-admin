@@ -2,8 +2,8 @@
 import { getRefreshToken, getToken, setRefreshToken, setToken } from "@/app/lib/auth"
 import { cookies } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
-// const DJANGO_LOGIN_URL = "http://127.0.0.1:8000/api/token/pair"
-const DJANGO_LOGIN_URL = "http://127.0.0.1:8000/api/auth/login/"
+const BACKEND_URL = (process.env.BACKEND_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "")
+const DJANGO_LOGIN_URL = `${BACKEND_URL}/auth/login/`
 
 export async function POST(request) {
   const myAuthToken = getToken()
