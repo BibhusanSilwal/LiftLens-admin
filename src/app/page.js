@@ -1,16 +1,12 @@
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { getToken } from '@/app/lib/auth'; // Your auth lib
+import { redirect } from 'next/navigation';
+import { getToken } from '@/app/lib/auth';
 
-export default function ProtectedPage() {
-  const router = useRouter();
-  useEffect(() => {
-    if (!getToken()) {
-      router.push('/login');
-    }
-  }, [router]);
+export default async function HomePage() {
+  const token = await getToken();
 
-  if (!getToken()) return null; // Or loading spinner
-  return <div>Your protected content</div>;
+  if (token) {
+    redirect('/dashboard');
+  }
+
+  redirect('/login');
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/input";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -68,18 +69,19 @@ export default function ExerciseAnalyticsPage() {
   const [topData, setTopData] = useState(null);
   const [detail, setDetail] = useState(null);
   const [live, setLive] = useState(null);
-  const [recommendations, setRecommendations] = useState(null);
+  const [allExercises, setAllExercises] = useState([]);
 
   const [topMetric, setTopMetric] = useState("sets");
   const [topLimit] = useState(5);
   const [topOffset, setTopOffset] = useState(0);
   const [selectedExerciseId, setSelectedExerciseId] = useState(null);
+  const [exerciseSearchTerm, setExerciseSearchTerm] = useState("");
+  const [showExerciseSuggestions, setShowExerciseSuggestions] = useState(false);
 
   const [loadingOverview, setLoadingOverview] = useState(false);
   const [loadingTop, setLoadingTop] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [loadingLive, setLoadingLive] = useState(false);
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [error, setError] = useState("");
 
   const fetchOverview = useCallback(async () => {
@@ -174,40 +176,31 @@ export default function ExerciseAnalyticsPage() {
     }
   }, []);
 
-  const fetchRecommendations = useCallback(async () => {
-    setLoadingRecommendations(true);
+  const fetchAllExercises = useCallback(async () => {
     try {
-      const res = await fetch("/api/exercise-analytics?scope=recommendations&limit=8", {
+      const res = await fetch("/api/exercises", {
         cache: "no-store",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.detail || "Failed to load recommendations");
-      setRecommendations(data);
+      if (!res.ok) throw new Error(data?.detail || "Failed to load exercises");
+      setAllExercises(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err?.message || "Failed to load recommendations");
-      setRecommendations(null);
-    } finally {
-      setLoadingRecommendations(false);
+      setError(err?.message || "Failed to load exercises");
+      setAllExercises([]);
     }
   }, []);
 
   const refreshAll = useCallback(async () => {
     setError("");
-    await Promise.all([
-      fetchOverview(),
-      fetchTop(),
-      fetchDetail(),
-      fetchLive(),
-      fetchRecommendations(),
-    ]);
-  }, [fetchOverview, fetchTop, fetchDetail, fetchLive, fetchRecommendations]);
+    await Promise.all([fetchOverview(), fetchTop(), fetchDetail(), fetchLive()]);
+  }, [fetchOverview, fetchTop, fetchDetail, fetchLive]);
 
   useEffect(() => {
     setError("");
     fetchOverview();
     fetchLive();
-    fetchRecommendations();
-  }, [fetchOverview, fetchLive, fetchRecommendations]);
+    fetchAllExercises();
+  }, [fetchOverview, fetchLive, fetchAllExercises]);
 
   useEffect(() => {
     fetchTop();
@@ -228,6 +221,47 @@ export default function ExerciseAnalyticsPage() {
 
   const hasNext = Boolean(topData?.pagination?.has_next);
   const canGoPrev = topOffset > 0;
+
+  const exerciseOptions = useMemo(() => {
+    const map = new Map();
+
+    (allExercises || []).forEach((exercise) => {
+      map.set(Number(exercise.id), {
+        id: Number(exercise.id),
+        name: exercise.name || "Unknown exercise",
+      });
+    });
+
+    (topData?.items || []).forEach((exercise) => {
+      map.set(Number(exercise.exercise_id), {
+        id: Number(exercise.exercise_id),
+        name: exercise.exercise_name || "Unknown exercise",
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allExercises, topData]);
+
+  const selectedExerciseOption = useMemo(() => {
+    return exerciseOptions.find((exercise) => exercise.id === Number(selectedExerciseId)) || null;
+  }, [exerciseOptions, selectedExerciseId]);
+
+  const exerciseSuggestions = useMemo(() => {
+    const query = exerciseSearchTerm.trim().toLowerCase();
+    if (!query) {
+      return exerciseOptions.slice(0, 5);
+    }
+
+    return exerciseOptions
+      .filter((exercise) => exercise.name.toLowerCase().includes(query))
+      .slice(0, 5);
+  }, [exerciseSearchTerm, exerciseOptions]);
+
+  useEffect(() => {
+    if (selectedExerciseOption?.name) {
+      setExerciseSearchTerm(selectedExerciseOption.name);
+    }
+  }, [selectedExerciseOption]);
 
   return (
     <div className="min-h-screen space-y-6 bg-black">
@@ -397,7 +431,54 @@ export default function ExerciseAnalyticsPage() {
       </Card>
 
       <Card className="border-[#1c1c1e] bg-black">
-        <CardHeader className="text-lg font-semibold text-white">Selected Exercise Detail</CardHeader>
+        <CardHeader className="text-white">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-lg font-semibold">Selected Exercise Detail</p>
+            <div className="relative w-full md:w-80">
+              <label className="mb-1 block text-sm text-gray-400" htmlFor="selected-exercise-search">
+                Search Exercise
+              </label>
+              <Input
+                id="selected-exercise-search"
+                value={exerciseSearchTerm}
+                onChange={(e) => {
+                  setExerciseSearchTerm(e.target.value);
+                  setShowExerciseSuggestions(true);
+                }}
+                onFocus={() => setShowExerciseSuggestions(true)}
+                onBlur={() => {
+                  setTimeout(() => setShowExerciseSuggestions(false), 100);
+                }}
+                placeholder="Search exercise name"
+                className="border-[#333] bg-black text-sm text-white"
+              />
+
+              {showExerciseSuggestions ? (
+                <div className="absolute z-20 mt-1 w-full rounded-md border border-[#333] bg-[#0b0b0b] shadow-lg">
+                  {exerciseSuggestions.length ? (
+                    exerciseSuggestions.map((exercise) => (
+                      <button
+                        key={exercise.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSelectedExerciseId(exercise.id);
+                          setExerciseSearchTerm(exercise.name);
+                          setShowExerciseSuggestions(false);
+                        }}
+                        className="block w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10"
+                      >
+                        {exercise.name}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-gray-400">No matching exercises</p>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </CardHeader>
         <CardContent className="space-y-5">
           {loadingDetail ? <p className="text-gray-400">Loading detail...</p> : null}
 
@@ -516,30 +597,6 @@ export default function ExerciseAnalyticsPage() {
                   ) : null}
                 </tbody>
               </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-[#1c1c1e] bg-black">
-        <CardHeader className="text-lg font-semibold text-white">Recommended Exercises</CardHeader>
-        <CardContent>
-          {loadingRecommendations ? (
-            <p className="text-gray-400">Loading recommendations...</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {(recommendations?.exercises || []).map((exercise) => (
-                <div key={exercise.id} className="rounded-xl border border-[#1f1f1f] bg-[#111] p-4">
-                  <p className="text-base font-semibold text-white">{exercise.name}</p>
-                  <p className="mt-1 text-xs text-gray-400">{exercise.description || "No description"}</p>
-                  <p className="mt-2 text-xs text-gray-500">
-                    {exercise.muscle_group} | {exercise.exercise_type} | {exercise.difficulty}
-                  </p>
-                </div>
-              ))}
-              {!recommendations?.exercises?.length ? (
-                <p className="text-sm text-gray-400">No recommendations available.</p>
-              ) : null}
             </div>
           )}
         </CardContent>

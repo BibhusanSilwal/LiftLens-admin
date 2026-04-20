@@ -4,37 +4,42 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "../../components/ui/Card";
 import { Users, Flame, UserCheck, UserX } from "lucide-react";
 import {
-  LineChart,
+  ComposedChart,
+  Bar,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
 
-/* ---------------- MOCK DATA (UNCHANGED) ---------------- */
-
-const mockData = [
-  { day: "Mon", users: 220 },
-  { day: "Tue", users: 165 },
-  { day: "Wed", users: 180 },
-  { day: "Thu", users: 200 },
-  { day: "Fri", users: 150 },
-  { day: "Sat", users: 220 },
-  { day: "Sun", users: 180 },
+const GRANULARITY_OPTIONS = [
+  { label: "Day", value: "day" },
+  { label: "Week", value: "week" },
+  { label: "Month", value: "month" },
 ];
 
-const liveFeed = [
-  { user: "Bibhusan Silwal", exercise: "Bench Press" },
-  { user: "Bibhusan Silwal", exercise: "Squats" },
-  { user: "Bibhusan Silwal", exercise: "Pull-ups" },
-  { user: "Bibhusan Silwal", exercise: "Plank" },
+const RANGE_OPTIONS = [
+  { label: "30D", value: "30" },
+  { label: "90D", value: "90" },
+  { label: "365D", value: "365" },
 ];
 
 export default function DashboardOverview() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [growthData, setGrowthData] = useState([]);
+  const [growthLoading, setGrowthLoading] = useState(true);
+  const [growthGranularity, setGrowthGranularity] = useState("day");
+  const [growthDays, setGrowthDays] = useState("30");
+  const [growthMeta, setGrowthMeta] = useState({
+    rangeStart: "",
+    rangeEnd: "",
+    totalNewUsers: 0,
+    currentTotalUsers: 0,
+  });
 
   /* ---------------- FETCH USER STATS ---------------- */
 
@@ -54,6 +59,60 @@ export default function DashboardOverview() {
 
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    const fetchGrowthChart = async () => {
+      setGrowthLoading(true);
+      try {
+        const params = new URLSearchParams({
+          days: growthDays,
+          granularity: growthGranularity,
+        });
+
+        const res = await fetch(`/api/users/growth-chart?${params.toString()}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.detail || "Failed to fetch growth chart");
+        }
+
+        const data = await res.json();
+        const points = Array.isArray(data?.points) ? data.points : [];
+
+        setGrowthData(
+          points.map((point) => ({
+            period:
+              growthGranularity === "day"
+                ? point.period_start?.slice(5) || "-"
+                : point.period_start || "-",
+            newUsers: Number(point.new_users || 0),
+            cumulativeUsers: Number(point.cumulative_users || 0),
+          }))
+        );
+
+        setGrowthMeta({
+          rangeStart: data?.range_start || "",
+          rangeEnd: data?.range_end || "",
+          totalNewUsers: Number(data?.total_new_users || 0),
+          currentTotalUsers: Number(data?.current_total_users || 0),
+        });
+      } catch (err) {
+        console.error("Dashboard growth chart error:", err);
+        setGrowthData([]);
+        setGrowthMeta({
+          rangeStart: "",
+          rangeEnd: "",
+          totalNewUsers: 0,
+          currentTotalUsers: 0,
+        });
+      } finally {
+        setGrowthLoading(false);
+      }
+    };
+
+    fetchGrowthChart();
+  }, [growthDays, growthGranularity]);
 
   return (
     <div className="space-y-6">
@@ -120,44 +179,87 @@ export default function DashboardOverview() {
         </Card>
       </div>
 
-      {/* ===================== GRAPH (UNCHANGED) ===================== */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* ===================== USER GROWTH ===================== */}
+      <div className="grid grid-cols-1 gap-6">
         <Card className="bg-gray-900 border-gray-800 col-span-1">
           <CardHeader className="pb-3">
-            <h3 className="text-lg font-semibold">User Growth & Activity</h3>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h3 className="text-lg font-semibold">User Growth Chart</h3>
+              <div className="flex items-center gap-2">
+                <select
+                  value={growthGranularity}
+                  onChange={(e) => setGrowthGranularity(e.target.value)}
+                  className="rounded-md border border-gray-700 bg-black px-2 py-1 text-sm text-white"
+                >
+                  {GRANULARITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={growthDays}
+                  onChange={(e) => setGrowthDays(e.target.value)}
+                  className="rounded-md border border-gray-700 bg-black px-2 py-1 text-sm text-white"
+                >
+                  {RANGE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="day" stroke="#666" />
-                <YAxis stroke="#666" />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="users"
-                  stroke="#FF4500"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent>
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-gray-800 bg-black p-3">
+                <p className="text-xs text-gray-400">New Users In Range</p>
+                <p className="text-lg font-bold text-white">{growthMeta.totalNewUsers}</p>
+              </div>
+              <div className="rounded-lg border border-gray-800 bg-black p-3">
+                <p className="text-xs text-gray-400">Current Total Users</p>
+                <p className="text-lg font-bold text-white">{growthMeta.currentTotalUsers}</p>
+              </div>
+            </div>
+
+            <p className="mb-2 text-xs text-gray-500">
+              {growthMeta.rangeStart && growthMeta.rangeEnd
+                ? `Range: ${growthMeta.rangeStart} to ${growthMeta.rangeEnd}`
+                : "Range: -"}
+            </p>
+
+            <div className="h-64">
+              {growthLoading ? (
+                <p className="pt-10 text-center text-gray-400">Loading growth chart...</p>
+              ) : growthData.length === 0 ? (
+                <p className="pt-10 text-center text-gray-400">No growth data available.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={growthData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                    <XAxis dataKey="period" stroke="#666" minTickGap={20} />
+                    <YAxis yAxisId="left" stroke="#666" />
+                    <YAxis yAxisId="right" orientation="right" stroke="#888" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="newUsers" name="New Users" fill="#f97316" radius={[4, 4, 0, 0]} />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="cumulativeUsers"
+                      name="Cumulative Users"
+                      stroke="#22c55e"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* ===================== LIVE FEED (UNCHANGED) ===================== */}
-        <Card className="bg-gray-900 border-gray-800 col-span-1">
-          <CardHeader className="pb-3">
-            <h3 className="text-lg font-semibold">Live Feed</h3>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {liveFeed.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-sm py-1">
-                <span className="text-gray-400">{item.user}</span>
-                <span className="text-orange-500">{item.exercise}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       </div>
 
       <p className="text-xs text-gray-500">Last updated: Just now</p>

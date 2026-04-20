@@ -20,10 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../components/ui/select";
-import { Dumbbell, Eye, Trash2 } from "lucide-react";
+import { Dumbbell, Pen, Trash2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 const difficultyOptions = ["beginner", "intermediate", "advanced"];
+const exerciseTypeOptions = [
+  "strength",
+  "cardio",
+  "flexibility",
+  "balance",
+  "mobility",
+  "sports",
+];
 const groupOptions = [
   "chest",
   "back",
@@ -43,6 +51,8 @@ const difficultyColors = {
 export default function ExercisesPage() {
   const [exercises, setExercises] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);
 
   /* Delete dialog state */
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -51,8 +61,19 @@ export default function ExercisesPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    exercise_type: "",
     muscle_group: "",
     difficulty: "",
+    met_value: "",
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    description: "",
+    exercise_type: "",
+    muscle_group: "",
+    difficulty: "",
+    status: "active",
     met_value: "",
   });
 
@@ -90,6 +111,15 @@ export default function ExercisesPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditSelectChange = (name, value) => {
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   /* =======================
      ADD EXERCISE
   ======================= */
@@ -101,6 +131,7 @@ export default function ExercisesPage() {
       const payload = {
         ...formData,
         description: formData.description || "",
+        exercise_type: formData.exercise_type.toLowerCase(),
         difficulty: formData.difficulty.toLowerCase(),
         muscle_group: formData.muscle_group.toLowerCase(),
         status: "active",
@@ -120,14 +151,126 @@ export default function ExercisesPage() {
       setFormData({
         name: "",
         description: "",
+        exercise_type: "",
         muscle_group: "",
         difficulty: "",
         met_value: "",
       });
       setIsModalOpen(false);
       toast.success("Exercise added successfully");
-    } catch {
-      alert("Failed to add exercise");
+    } catch (err) {
+      toast.error(err?.message || "Failed to add exercise");
+    }
+  };
+
+  const openEditDialog = async (exerciseId) => {
+    try {
+      const res = await fetch(`/api/exercises/${exerciseId}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.detail || "Failed to load exercise");
+      }
+
+      setSelectedExercise(data);
+      setEditFormData({
+        name: data.name || "",
+        description: data.description || "",
+        exercise_type: data.exercise_type || "",
+        muscle_group: data.muscle_group || "",
+        difficulty: data.difficulty || "",
+        status: data.status || "active",
+        met_value:
+          data.met_value === null || data.met_value === undefined
+            ? ""
+            : String(data.met_value),
+      });
+      setIsEditModalOpen(true);
+    } catch (err) {
+      toast.error(err?.message || "Failed to load exercise details");
+    }
+  };
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    setIsUpdateConfirmOpen(true);
+  };
+
+  const confirmUpdateExercise = async () => {
+    if (!selectedExercise?.id) return;
+
+    const payload = {};
+
+    if (editFormData.name !== selectedExercise.name) {
+      payload.name = editFormData.name;
+    }
+
+    if ((editFormData.description || "") !== (selectedExercise.description || "")) {
+      payload.description = editFormData.description || "";
+    }
+
+    if (
+      editFormData.exercise_type.toLowerCase() !==
+      (selectedExercise.exercise_type || "").toLowerCase()
+    ) {
+      payload.exercise_type = editFormData.exercise_type.toLowerCase();
+    }
+
+    if (
+      editFormData.muscle_group.toLowerCase() !==
+      (selectedExercise.muscle_group || "").toLowerCase()
+    ) {
+      payload.muscle_group = editFormData.muscle_group.toLowerCase();
+    }
+
+    if (
+      editFormData.difficulty.toLowerCase() !==
+      (selectedExercise.difficulty || "").toLowerCase()
+    ) {
+      payload.difficulty = editFormData.difficulty.toLowerCase();
+    }
+
+    if (
+      editFormData.status.toLowerCase() !==
+      (selectedExercise.status || "").toLowerCase()
+    ) {
+      payload.status = editFormData.status.toLowerCase();
+    }
+
+    const nextMet = editFormData.met_value === "" ? null : parseFloat(editFormData.met_value);
+    const currentMet =
+      selectedExercise.met_value === null || selectedExercise.met_value === undefined
+        ? null
+        : Number(selectedExercise.met_value);
+
+    if (nextMet !== currentMet) {
+      payload.met_value = nextMet;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      toast.error("No fields were changed");
+      setIsUpdateConfirmOpen(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/exercises/${selectedExercise.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.detail || "Failed to update exercise");
+      }
+
+      setExercises((prev) => prev.map((ex) => (ex.id === selectedExercise.id ? data : ex)));
+      setSelectedExercise(data);
+      setIsUpdateConfirmOpen(false);
+      setIsEditModalOpen(false);
+      toast.success("Exercise updated successfully");
+    } catch (err) {
+      toast.error(err?.message || "Failed to update exercise");
     }
   };
 
@@ -197,6 +340,25 @@ export default function ExercisesPage() {
                   value={formData.description}
                   onChange={handleInputChange}
                 />
+              </div>
+
+              <div>
+                <Label>Exercise Type</Label>
+                <Select
+                  value={formData.exercise_type}
+                  onValueChange={(v) => handleSelectChange("exercise_type", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent className="z-1000 bg-black text-white border-[#1c1c1e]">
+                    {exerciseTypeOptions.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {capitalize(type)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -307,8 +469,12 @@ export default function ExercisesPage() {
                     <td className="text-green-500">{ex.status}</td>
                     <td>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(ex.id)}
+                        >
+                          <Pen className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -352,6 +518,152 @@ export default function ExercisesPage() {
             </Button>
             <Button className="bg-red-600" onClick={confirmDelete}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* EDIT EXERCISE DIALOG */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="bg-black border-[#1c1c1e] text-white">
+          <DialogHeader>
+            <DialogTitle>Update Exercise</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div>
+              <Label>Exercise Name</Label>
+              <Input
+                name="name"
+                value={editFormData.name}
+                onChange={handleEditInputChange}
+              />
+            </div>
+
+            <div>
+              <Label>Description (Optional)</Label>
+              <Input
+                name="description"
+                value={editFormData.description}
+                onChange={handleEditInputChange}
+              />
+            </div>
+
+            <div>
+              <Label>Exercise Type</Label>
+              <Select
+                value={editFormData.exercise_type}
+                onValueChange={(v) => handleEditSelectChange("exercise_type", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent className="z-1000 bg-black text-white border-[#1c1c1e]">
+                  {exerciseTypeOptions.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {capitalize(type)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Muscle Group</Label>
+              <Select
+                value={editFormData.muscle_group}
+                onValueChange={(v) => handleEditSelectChange("muscle_group", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select group" />
+                </SelectTrigger>
+                <SelectContent className="z-1000 bg-black text-white border-[#1c1c1e]">
+                  {groupOptions.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {capitalize(g)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Difficulty</Label>
+              <Select
+                value={editFormData.difficulty}
+                onValueChange={(v) => handleEditSelectChange("difficulty", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent className="z-1000 bg-black text-white border-[#1c1c1e]">
+                  {difficultyOptions.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {capitalize(d)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Status</Label>
+              <Select
+                value={editFormData.status}
+                onValueChange={(v) => handleEditSelectChange("status", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent className="z-1000 bg-black text-white border-[#1c1c1e]">
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>MET Value</Label>
+              <Input
+                type="number"
+                step="0.1"
+                name="met_value"
+                value={editFormData.met_value}
+                onChange={handleEditInputChange}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-red-600">
+                Update Exercise
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* UPDATE CONFIRM DIALOG */}
+      <Dialog open={isUpdateConfirmOpen} onOpenChange={setIsUpdateConfirmOpen}>
+        <DialogContent className="bg-black border-[#1c1c1e]">
+          <DialogHeader>
+            <DialogTitle className="text-white">Confirm Update</DialogTitle>
+          </DialogHeader>
+
+          <p className="text-gray-400">Are you sure you want to update this exercise?</p>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsUpdateConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-red-600" onClick={confirmUpdateExercise}>
+              Confirm
             </Button>
           </DialogFooter>
         </DialogContent>

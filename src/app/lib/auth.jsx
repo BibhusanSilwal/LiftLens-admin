@@ -1,8 +1,8 @@
 const { cookies } = require("next/headers")
 
 const TOKEN_AGE = 36000
-const TOKEN_NAME = "auth-token"
-const TOKEN_REFRESH_NAME = "auth-refresh-token"
+export const TOKEN_NAME = "auth-token"
+export const TOKEN_REFRESH_NAME = "auth-refresh-token"
 
 export async function getToken(){
       const myAuthToken = (await cookies()).get(TOKEN_NAME)
@@ -40,7 +40,9 @@ export async function setRefreshToken(authRefreshToken){
 
 export async function deleteToken(){
     // logout
+  const cookieStore = await cookies()
+  cookieStore.delete(TOKEN_REFRESH_NAME)
+  cookieStore.delete(TOKEN_NAME)
 
-    (await cookies()).delete(TOKEN_REFRESH_NAME)
-      return (await cookies()).delete(TOKEN_NAME)
+  return true
 }

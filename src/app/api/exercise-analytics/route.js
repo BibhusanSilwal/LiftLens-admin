@@ -57,7 +57,8 @@ export async function GET(request) {
     }
 
     const query = backendParams.toString();
-    const url = `${BACKEND_URL}${endpoint}${query ? `?${query}` : ""}`;
+    const baseUrl = `${BACKEND_URL}${endpoint}`.replace(/\/+$/, "");
+    const url = query ? `${baseUrl}?${query}` : baseUrl;
 
     const res = await fetch(url, {
       method: "GET",

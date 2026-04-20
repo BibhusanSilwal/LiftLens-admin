@@ -13,37 +13,11 @@ import {
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../../components/ui/select";
 import { Checkbox } from "../../../components/ui/checkbox";
 import { Apple, Download, Edit, Trash2, Search } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
-// Safe capitalize function
-const capitalize = (str) => {
-  if (!str || typeof str !== "string") return "—";
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-};
-
 const ITEMS_PER_PAGE = 50;
-
-const categoryOptions = [
-  "protein",
-  "carbs",
-  "vegetables",
-  "fruits",
-  "dairy",
-  "fats",
-  "grains",
-  "beverages",
-  "other",
-];
-
 export default function FoodDatabasePage() {
   const csvInputRef = useRef(null);
   const [foods, setFoods] = useState([]);
@@ -57,13 +31,10 @@ export default function FoodDatabasePage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
     name: "",
-    category: "",
     calories: "",
     protein: "",
     fats: "",
     carbs: "",
-    fiber: "",
-    serving_size: "",
     serving_unit: "g",
   });
 
@@ -71,13 +42,10 @@ export default function FoodDatabasePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: "",
-    category: "",
     calories: "",
     protein: "",
     fats: "",
     carbs: "",
-    fiber: "",
-    serving_size: "",
     serving_unit: "g",
   });
   const [selectedFood, setSelectedFood] = useState(null);
@@ -111,11 +79,7 @@ export default function FoodDatabasePage() {
     }
 
     const term = searchTerm.toLowerCase().trim();
-    const filtered = foods.filter(
-      (food) =>
-        food.name?.toLowerCase().includes(term) ||
-        food.category?.toLowerCase().includes(term)
-    );
+    const filtered = foods.filter((food) => food.name?.toLowerCase().includes(term));
 
     setFilteredFoods(filtered);
     setCurrentPage(1);
@@ -140,22 +104,17 @@ export default function FoodDatabasePage() {
     setAddFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddSelect = (name, value) => {
-    setAddFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     try {
       const payload = {
         name: addFormData.name.trim(),
-        category: addFormData.category.toLowerCase(),
+        category: "other",
         calories: parseFloat(addFormData.calories) || 0,
         protein: parseFloat(addFormData.protein) || 0,
         fats: parseFloat(addFormData.fats) || 0,
         carbs: parseFloat(addFormData.carbs) || 0,
-        fiber: parseFloat(addFormData.fiber) || 0,
-        serving_size: parseFloat(addFormData.serving_size) || 100,
+        serving_size: 100,
         serving_unit: addFormData.serving_unit || "g",
         status: "active",
       };
@@ -176,13 +135,10 @@ export default function FoodDatabasePage() {
       setFilteredFoods((prev) => [...prev, newFood]);
       setAddFormData({
         name: "",
-        category: "",
         calories: "",
         protein: "",
         fats: "",
         carbs: "",
-        fiber: "",
-        serving_size: "",
         serving_unit: "g",
       });
       setIsAddModalOpen(false);
@@ -197,13 +153,10 @@ export default function FoodDatabasePage() {
     setSelectedFood(food);
     setEditFormData({
       name: food.name || "",
-      category: food.category || "",
       calories: food.calories?.toString() || "",
       protein: food.protein?.toString() || "",
       fats: food.fats?.toString() || "",
       carbs: food.carbs?.toString() || "",
-      fiber: food.fiber?.toString() || "",
-      serving_size: food.serving_size?.toString() || "",
       serving_unit: food.serving_unit || "g",
     });
     setIsEditModalOpen(true);
@@ -214,10 +167,6 @@ export default function FoodDatabasePage() {
     setEditFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleEditSelect = (name, value) => {
-    setEditFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFood?.id) return;
@@ -225,18 +174,14 @@ export default function FoodDatabasePage() {
     try {
       const payload = {
         name: editFormData.name.trim(),
-        category: editFormData.category.toLowerCase(),
         calories: parseFloat(editFormData.calories) || 0,
         protein: parseFloat(editFormData.protein) || 0,
         fats: parseFloat(editFormData.fats) || 0,
         carbs: parseFloat(editFormData.carbs) || 0,
-        fiber: parseFloat(editFormData.fiber) || 0,
-        serving_size: parseFloat(editFormData.serving_size) || 100,
-        serving_unit: editFormData.serving_unit || "g",
       };
 
       const res = await fetch(`/api/foods/${selectedFood.id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -301,7 +246,6 @@ export default function FoodDatabasePage() {
       "Protein",
       "Fats",
       "Carbs",
-      "Fiber",
       "Serving Size",
       "Unit",
       "Status",
@@ -310,12 +254,11 @@ export default function FoodDatabasePage() {
     const rows = filteredFoods.map((f, index) => [
       index + 1,
       f.name || "",
-      capitalize(f?.category),
+      f.category || "",
       f.calories ?? 0,
       f.protein ?? 0,
       f.fats ?? 0,
       f.carbs ?? 0,
-      f.fiber ?? 0,
       f.serving_size ?? "",
       f.serving_unit ?? "",
       f.status ?? "active",
@@ -395,7 +338,7 @@ export default function FoodDatabasePage() {
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by name or category..."
+              placeholder="Search by name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 bg-[#1a1a1a] border-[#333] text-white placeholder:text-gray-500"
@@ -448,22 +391,6 @@ export default function FoodDatabasePage() {
                   <Input name="name" value={addFormData.name} onChange={handleAddChange} required />
                 </div>
 
-                <div>
-                  <Label>Category</Label>
-                  <Select value={addFormData.category} onValueChange={(v) => handleAddSelect("category", v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black text-white border-[#1c1c1e]">
-                      {categoryOptions.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {capitalize(cat)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Calories (kcal)</Label>
@@ -472,16 +399,6 @@ export default function FoodDatabasePage() {
                       step="0.1"
                       name="calories"
                       value={addFormData.calories}
-                      onChange={handleAddChange}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Serving Size</Label>
-                    <Input
-                      type="number"
-                      name="serving_size"
-                      value={addFormData.serving_size}
                       onChange={handleAddChange}
                       required
                     />
@@ -525,16 +442,6 @@ export default function FoodDatabasePage() {
                       required
                     />
                   </div>
-                  <div>
-                    <Label>Fiber (g)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      name="fiber"
-                      value={addFormData.fiber}
-                      onChange={handleAddChange}
-                    />
-                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
@@ -574,13 +481,10 @@ export default function FoodDatabasePage() {
                     <tr className="border-b border-[#333]">
                       <th className="text-left py-3 px-4">S.No.</th>
                       <th className="text-left py-3 px-4">Name</th>
-                      <th className="text-left py-3 px-4">Category</th>
                       <th className="text-left py-3 px-4">Calories</th>
                       <th className="text-left py-3 px-4">Protein</th>
                       <th className="text-left py-3 px-4">Fats</th>
                       <th className="text-left py-3 px-4">Carbs</th>
-                      <th className="text-left py-3 px-4">Fiber</th>
-                      <th className="text-left py-3 px-4">Serving</th>
                       <th className="text-left py-3 px-4">Actions</th>
                     </tr>
                   </thead>
@@ -589,15 +493,10 @@ export default function FoodDatabasePage() {
                       <tr key={food.id} className="border-b border-[#222] hover:bg-[#111]">
                         <td className="py-3 px-4">{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
                         <td className="py-3 px-4 font-medium">{food.name || "—"}</td>
-                        <td className="py-3 px-4">{capitalize(food?.category)}</td>
                         <td className="py-3 px-4">{food.calories ?? 0} kcal</td>
                         <td className="py-3 px-4">{food.protein ?? 0}g</td>
                         <td className="py-3 px-4">{food.fats ?? 0}g</td>
                         <td className="py-3 px-4">{food.carbs ?? 0}g</td>
-                        <td className="py-3 px-4">{food.fiber ?? 0}g</td>
-                        <td className="py-3 px-4">
-                          {food.serving_size ?? "—"} {food.serving_unit ?? "g"}
-                        </td>
                         <td className="py-3 px-4">
                           <div className="flex gap-2">
                             <Button
@@ -664,79 +563,6 @@ export default function FoodDatabasePage() {
         </CardContent>
       </Card>
 
-      {/* Add Dialog */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="bg-black border-[#1c1c1e] text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Food Item</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAddSubmit} className="space-y-4">
-            <div>
-              <Label>Food Name</Label>
-              <Input name="name" value={addFormData.name} onChange={handleAddChange} required />
-            </div>
-
-            <div>
-              <Label>Category</Label>
-              <Select value={addFormData.category} onValueChange={(v) => handleAddSelect("category", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent className="bg-black text-white border-[#1c1c1e]">
-                  {categoryOptions.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {capitalize(cat)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Calories (kcal)</Label>
-                <Input type="number" step="0.1" name="calories" value={addFormData.calories} onChange={handleAddChange} required />
-              </div>
-              <div>
-                <Label>Serving Size</Label>
-                <Input type="number" name="serving_size" value={addFormData.serving_size} onChange={handleAddChange} required />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Protein (g)</Label>
-                <Input type="number" step="0.1" name="protein" value={addFormData.protein} onChange={handleAddChange} required />
-              </div>
-              <div>
-                <Label>Fats (g)</Label>
-                <Input type="number" step="0.1" name="fats" value={addFormData.fats} onChange={handleAddChange} required />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Carbs (g)</Label>
-                <Input type="number" step="0.1" name="carbs" value={addFormData.carbs} onChange={handleAddChange} required />
-              </div>
-              <div>
-                <Label>Fiber (g)</Label>
-                <Input type="number" step="0.1" name="fiber" value={addFormData.fiber} onChange={handleAddChange} />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-red-600">
-                Add Food
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* Edit Dialog */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="bg-black border-[#1c1c1e] text-white max-w-md">
@@ -748,31 +574,10 @@ export default function FoodDatabasePage() {
               <Label>Food Name</Label>
               <Input name="name" value={editFormData.name} onChange={handleEditChange} required />
             </div>
-
-            <div>
-              <Label>Category</Label>
-              <Select value={editFormData.category} onValueChange={(v) => handleEditSelect("category", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent className="bg-black text-white border-[#1c1c1e]">
-                  {categoryOptions.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {capitalize(cat)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Calories (kcal)</Label>
                 <Input type="number" step="0.1" name="calories" value={editFormData.calories} onChange={handleEditChange} required />
-              </div>
-              <div>
-                <Label>Serving Size</Label>
-                <Input type="number" name="serving_size" value={editFormData.serving_size} onChange={handleEditChange} required />
               </div>
             </div>
 
@@ -791,10 +596,6 @@ export default function FoodDatabasePage() {
               <div>
                 <Label>Carbs (g)</Label>
                 <Input type="number" step="0.1" name="carbs" value={editFormData.carbs} onChange={handleEditChange} required />
-              </div>
-              <div>
-                <Label>Fiber (g)</Label>
-                <Input type="number" step="0.1" name="fiber" value={editFormData.fiber} onChange={handleEditChange} />
               </div>
             </div>
 
