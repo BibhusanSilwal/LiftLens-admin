@@ -2,20 +2,24 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Users, LayoutDashboard, Dumbbell } from 'lucide-react';
+import { Users, LayoutDashboard, Dumbbell, LogOut, ChartColumn, Utensils, Bell, X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/users', label: 'Users', icon: Users },
   { href: '/dashboard/exercises', label: 'Content', icon: Dumbbell },
+  { href: '/dashboard/food', label: 'Food', icon: Utensils },
+  { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
+  { href: '/dashboard/exercise-analytics', label: 'Exercise Analytics', icon: ChartColumn },
+  { href: '/dashboard/user-analytics', label: 'User Analytics', icon: ChartColumn },
 ];
 const LOGOUT_URL  = "/api/logout/"
 
-export function Sidebar() {
+export function Sidebar({ isOpen = false, onClose = () => {} }) {
   const router = useRouter()
   const pathname = usePathname();
-  console.log(pathname)
 
 const logOut = async(e) => {
   e.preventDefault();
@@ -32,13 +36,14 @@ const logOut = async(e) => {
   const response = await fetch(LOGOUT_URL, requestOptions)
   const data = await response.json()
   if(response.ok){
-      router.replace("/");
+      router.replace("/login");
+      onClose();
   }
   else{
-    toast.error("Login Failed", {
+    toast.error("Logout Failed", {
       description: (
         <span className="text-white">
-          Please enter correct username or password
+          An error occurred during logout. Please try again.
         </span>
       ),
       style: {
@@ -51,12 +56,33 @@ const logOut = async(e) => {
   }
 };
   return (
-    <div className="w-64 bg-black border-r border-gray-800 h-screen fixed left-0 top-0 p-4">
-      <div className="flex items-center space-x-2 mb-8">
-        <img src="/logo.png" alt="LiftLens" className="h-22 w-40" />
+    <>
+      <div
+        onClick={onClose}
+        className={cn(
+          'fixed inset-0 z-30 bg-black/60 md:hidden',
+          isOpen ? 'block' : 'hidden'
+        )}
+      />
 
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-800 bg-black p-4 transition-transform duration-200 md:translate-x-0',
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+      <div className="mb-8 flex items-center justify-between space-x-2">
+        <img src="/logo.png" alt="LiftLens" className="h-22 w-40" />
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md p-2 text-gray-400 hover:bg-gray-800 hover:text-white md:hidden"
+          aria-label="Close sidebar menu"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
-      <nav className="space-y-2">
+      <nav className="flex-1 space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isOverview = item.href === '/dashboard';
@@ -65,6 +91,7 @@ const logOut = async(e) => {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={cn(
                 'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 isActive
@@ -78,9 +105,18 @@ const logOut = async(e) => {
           );
         })}
       </nav>
-      <div>
-        <button onClick={logOut}>Logout</button>
+      <div className="mt-auto">
+        <button 
+          onClick={logOut}
+          className={cn(
+            'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full text-gray-400 hover:text-red-400 hover:bg-gray-800'
+          )}
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Logout</span>
+        </button>
       </div>
-    </div>
+      </aside>
+    </>
   );
 }

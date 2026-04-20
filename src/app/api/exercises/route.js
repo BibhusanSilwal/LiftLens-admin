@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "@/app/lib/auth";
 
-const BACKEND_URL = "http://127.0.0.1:8000/api";
+const BACKEND_URL = (process.env.BACKEND_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
 
 export async function GET() {
   try {
     const token = await getToken();  // Add await
-    console.log("Token (GET):", token ? `${token.substring(0, 20)}...` : "null");  // Debug log (truncate for security)
+    console.log("Token (GET):", token ? `${token.substring(0, 20)}...` : "null");  
     
     if (!token) {
       return NextResponse.json({ detail: "Authentication required" }, { status: 401 });

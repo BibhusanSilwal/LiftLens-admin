@@ -1,6 +1,6 @@
 const { cookies } = require("next/headers")
 
-const TOKEN_AGE = 3600
+const TOKEN_AGE = 36000
 const TOKEN_NAME = "auth-token"
 const TOKEN_REFRESH_NAME = "auth-refresh-token"
 

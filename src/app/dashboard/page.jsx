@@ -121,7 +121,7 @@ export default function DashboardOverview() {
       </div>
 
       {/* ===================== GRAPH (UNCHANGED) ===================== */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="bg-gray-900 border-gray-800 col-span-1">
           <CardHeader className="pb-3">
             <h3 className="text-lg font-semibold">User Growth & Activity</h3>
