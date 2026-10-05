@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Users, LayoutDashboard, Dumbbell, LogOut, ChartColumn, Utensils, Bell, X } from 'lucide-react';
@@ -17,44 +18,66 @@ const navItems = [
 ];
 const LOGOUT_URL  = "/api/logout/"
 
+function getCookieClient(name) {
+  if (typeof window === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
+
 export function Sidebar({ isOpen = false, onClose = () => {} }) {
   const router = useRouter()
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+  const [userType, setUserType] = useState(null);
 
-const logOut = async(e) => {
-  e.preventDefault();
+  useEffect(() => {
+    setMounted(true);
+    setUserType(getCookieClient("user-type"));
+  }, []);
 
-  const requestOptions = {
-      method: "POST",
-      headers:{
-          "Content-Type": "application/json"
-      },
-      body:""
-  }
-  
-  
-  const response = await fetch(LOGOUT_URL, requestOptions)
-  const data = await response.json()
-  if(response.ok){
-      router.replace("/login");
-      onClose();
-  }
-  else{
-    toast.error("Logout Failed", {
-      description: (
-        <span className="text-white">
-          An error occurred during logout. Please try again.
-        </span>
-      ),
-      style: {
-        background: '#dc2626',  // Red background for whole toast
-        color: 'white',         // White text (affects title primarily)
-        border: '1px solid #b91c1c',  // Darker red border
-      },
+  const logOut = async(e) => {
+    e.preventDefault();
 
-    });
-  }
-};
+    const requestOptions = {
+        method: "POST",
+        headers:{
+            "Content-Type": "application/json"
+        },
+        body:""
+    }
+    
+    const response = await fetch(LOGOUT_URL, requestOptions)
+    const data = await response.json()
+    if(response.ok){
+        router.replace("/login");
+        onClose();
+    }
+    else{
+      toast.error("Logout Failed", {
+        description: (
+          <span className="text-white">
+            An error occurred during logout. Please try again.
+          </span>
+        ),
+        style: {
+          background: '#dc2626',  // Red background for whole toast
+          color: 'white',         // White text (affects title primarily)
+          border: '1px solid #b91c1c',  // Darker red border
+        },
+
+      });
+    }
+  };
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (userType === 'gym') {
+      return ['/dashboard/users', '/dashboard/notifications', '/dashboard/user-analytics'].includes(item.href);
+    }
+    return true;
+  });
+
   return (
     <>
       <div
@@ -83,7 +106,7 @@ const logOut = async(e) => {
         </button>
       </div>
       <nav className="flex-1 space-y-2">
-        {navItems.map((item) => {
+        {mounted && filteredNavItems.map((item) => {
           const Icon = item.icon;
           const isOverview = item.href === '/dashboard';
           const isActive = isOverview ? pathname === item.href : pathname.startsWith(item.href);
@@ -100,7 +123,7 @@ const logOut = async(e) => {
               )}
             >
               <Icon className="h-4 w-4" />
-              <span>{item.label}</span>
+              <span>{item.href === '/dashboard/users' && userType === 'gym' ? 'Members' : item.label}</span>
             </Link>
           );
         })}

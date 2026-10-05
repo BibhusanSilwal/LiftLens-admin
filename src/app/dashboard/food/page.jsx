@@ -16,9 +16,24 @@ import { Label } from "../../../components/ui/label";
 import { Checkbox } from "../../../components/ui/checkbox";
 import { Apple, Download, Edit, Trash2, Search } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { useRouter } from "next/navigation";
 
 const ITEMS_PER_PAGE = 50;
 export default function FoodDatabasePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const getCookie = (name) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return null;
+    };
+    if (getCookie("user-type") === "gym") {
+      router.replace("/dashboard");
+    }
+  }, [router]);
+
   const csvInputRef = useRef(null);
   const [foods, setFoods] = useState([]);
   const [filteredFoods, setFilteredFoods] = useState([]);

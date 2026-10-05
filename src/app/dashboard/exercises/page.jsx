@@ -22,6 +22,7 @@ import {
 } from "../../../components/ui/select";
 import { Dumbbell, Pen, Trash2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { useRouter } from "next/navigation";
 
 const difficultyOptions = ["beginner", "intermediate", "advanced"];
 const exerciseTypeOptions = [
@@ -49,7 +50,20 @@ const difficultyColors = {
 };
 
 export default function ExercisesPage() {
+  const router = useRouter();
   const [exercises, setExercises] = useState([]);
+
+  useEffect(() => {
+    const getCookie = (name) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return null;
+    };
+    if (getCookie("user-type") === "gym") {
+      router.replace("/dashboard");
+    }
+  }, [router]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUpdateConfirmOpen, setIsUpdateConfirmOpen] = useState(false);

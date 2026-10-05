@@ -17,6 +17,18 @@ export async function POST(){
             maxAge: 0,
             path: "/",
         });
+        response.cookies.set("user-type", "", {
+            httpOnly: false,
+            sameSite: "strict",
+            maxAge: 0,
+            path: "/",
+        });
+        response.cookies.set("is-admin", "", {
+            httpOnly: false,
+            sameSite: "strict",
+            maxAge: 0,
+            path: "/",
+        });
 
         return response;
 }

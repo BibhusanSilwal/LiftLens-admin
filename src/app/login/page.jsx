@@ -35,13 +35,13 @@ export default function LoginPage() {
       const data = await response.json();
       console.log(data);
 
-      if (response.ok && data.is_admin) { // New: Check for admin role
-        // Redirect to admin dashboard
-        window.location.href = '/dashboard'; // Updated: Admin-specific path
+      if (response.ok && (data.is_admin || data.user_type === 'gym')) { // Check for admin or gym role
+        // Redirect to dashboard/users for gym, or dashboard for admin
+        window.location.href = data.user_type === 'gym' ? '/dashboard/users' : '/dashboard';
       } else if (response.ok) {
-        // Fallback: Not admin, but valid user—redirect to user dashboard or error
+        // Fallback: Not admin or gym, but valid user
         toast.error("Access Denied", {
-          description: "Admin privileges required for this dashboard.",
+          description: "Admin or Gym privileges required for this dashboard.",
           style: {
             background: '#dc2626',
             color: 'white',

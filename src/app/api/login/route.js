@@ -1,5 +1,5 @@
 "use server"
-import { getRefreshToken, getToken, setRefreshToken, setToken } from "@/app/lib/auth"
+import { getRefreshToken, getToken, setRefreshToken, setToken, setUserType, setIsAdmin } from "@/app/lib/auth"
 import { cookies } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 const BACKEND_URL = (process.env.BACKEND_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "")
@@ -22,7 +22,7 @@ export async function POST(request) {
   // Fetch to Django
   const response = await fetch(DJANGO_LOGIN_URL, requestOptions)
   const responseData = await response.json()
-  const { access, refresh, is_admin } = responseData  // New: Extract is_admin
+  const { access, refresh, is_admin, user_type } = responseData
 
   // Create response
   const nextResponse = NextResponse.json(
@@ -30,14 +30,17 @@ export async function POST(request) {
       success: response.ok,
       message: response.ok ? "Login successful" : "Login failed",
       token: access,  // Include token for client if needed (but it's in cookie)
-      is_admin: is_admin  // New: Pass role to client
+      is_admin: is_admin,
+      user_type: user_type
     },
     { status: response.ok ? 200 : 401 }
   )
   if (response.ok) {
-    // Set cookie on the response (not via cookies().set())
+    // Set cookie on the response
     setToken(access)
     setRefreshToken(refresh)
+    setUserType(user_type || "")
+    setIsAdmin(is_admin || false)
   }
   return nextResponse
 }

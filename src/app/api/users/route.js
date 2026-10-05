@@ -39,6 +39,10 @@ export async function GET(request) {
     return proxy(request, `${BACKEND_URL}/stats`);
   }
 
+  if (searchParams.get("id")) {
+    return proxy(request, `${BACKEND_URL}/${searchParams.get("id")}`);
+  }
+
   return proxy(request, `${BACKEND_URL}?${searchParams.toString()}`);
 }
 
