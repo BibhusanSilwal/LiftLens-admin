@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,20 @@ function StatCard({ title, value, sub }) {
 }
 
 export default function ExerciseAnalyticsPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const getCookie = (name) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return null;
+    };
+    if (getCookie("user-type") === "gym") {
+      router.replace("/dashboard");
+    }
+  }, [router]);
+
   const [overview, setOverview] = useState(null);
   const [topData, setTopData] = useState(null);
   const [detail, setDetail] = useState(null);

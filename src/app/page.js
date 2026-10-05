@@ -1,11 +1,16 @@
 import { redirect } from 'next/navigation';
-import { getToken } from '@/app/lib/auth';
+import { getToken, getUserType } from '@/app/lib/auth';
 
 export default async function HomePage() {
   const token = await getToken();
+  const userType = await getUserType();
 
   if (token) {
-    redirect('/dashboard');
+    if (userType === 'gym') {
+      redirect('/dashboard/users');
+    } else {
+      redirect('/dashboard');
+    }
   }
 
   redirect('/login');

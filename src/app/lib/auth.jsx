@@ -38,11 +38,43 @@ export async function setRefreshToken(authRefreshToken){
 
 
 
+export async function getUserType(){
+      const myUserType = (await cookies()).get("user-type")
+      return myUserType?.value
+}
+
+export async function setUserType(userType){
+    return (await cookies()).set({
+      name: "user-type",
+      value: userType,
+      httpOnly: false,
+      sameSite: "strict",
+      maxAge: TOKEN_AGE
+    })
+}
+
+export async function getIsAdmin(){
+      const myIsAdmin = (await cookies()).get("is-admin")
+      return myIsAdmin?.value === "true"
+}
+
+export async function setIsAdmin(isAdmin){
+    return (await cookies()).set({
+      name: "is-admin",
+      value: String(isAdmin),
+      httpOnly: false,
+      sameSite: "strict",
+      maxAge: TOKEN_AGE
+    })
+}
+
 export async function deleteToken(){
     // logout
   const cookieStore = await cookies()
   cookieStore.delete(TOKEN_REFRESH_NAME)
   cookieStore.delete(TOKEN_NAME)
+  cookieStore.delete("user-type")
+  cookieStore.delete("is-admin")
 
   return true
 }

@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "../../components/ui/Card";
 import { Users, Flame, UserCheck, UserX } from "lucide-react";
+
+function getCookieClient(name) {
+  if (typeof window === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
 import {
   ComposedChart,
   Bar,
@@ -28,8 +37,10 @@ const RANGE_OPTIONS = [
 ];
 
 export default function DashboardOverview() {
+  const router = useRouter();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userType, setUserType] = useState(null);
   const [growthData, setGrowthData] = useState([]);
   const [growthLoading, setGrowthLoading] = useState(true);
   const [growthGranularity, setGrowthGranularity] = useState("day");
@@ -41,9 +52,19 @@ export default function DashboardOverview() {
     currentTotalUsers: 0,
   });
 
+  useEffect(() => {
+    const type = getCookieClient("user-type");
+    setUserType(type || 'normal');
+    if (type === "gym") {
+      router.replace("/dashboard/users");
+    }
+  }, [router]);
+
   /* ---------------- FETCH USER STATS ---------------- */
 
   useEffect(() => {
+    if (getCookieClient("user-type") === "gym") return;
+
     const fetchStats = async () => {
       try {
         const res = await fetch("/api/users?stats=true");
@@ -61,6 +82,8 @@ export default function DashboardOverview() {
   }, []);
 
   useEffect(() => {
+    if (getCookieClient("user-type") === "gym") return;
+
     const fetchGrowthChart = async () => {
       setGrowthLoading(true);
       try {
@@ -113,6 +136,14 @@ export default function DashboardOverview() {
 
     fetchGrowthChart();
   }, [growthDays, growthGranularity]);
+
+  if (userType === "gym") {
+    return (
+      <div className="flex h-96 items-center justify-center bg-black">
+        <p className="text-gray-400 text-sm animate-pulse">Redirecting to members page...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

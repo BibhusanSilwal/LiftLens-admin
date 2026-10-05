@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getToken } from "@/app/lib/auth";
 
 const API_BASE_URL = (process.env.BACKEND_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
-const BACKEND_URL = `${API_BASE_URL}/admin/users`;
+const BACKEND_URL = `${API_BASE_URL}/users/gym/members`;
 
 async function proxy(request, url, method = "GET", body = null) {
   const token = await getToken();
@@ -29,51 +29,20 @@ async function proxy(request, url, method = "GET", body = null) {
   return NextResponse.json(await res.json(), { status: res.status });
 }
 
-/* =======================
-   GET: users + stats
-   ======================= */
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-
-  if (searchParams.get("stats")) {
-    return proxy(request, `${BACKEND_URL}/stats`);
-  }
-
-  if (searchParams.get("id")) {
-    return proxy(request, `${BACKEND_URL}/${searchParams.get("id")}`);
-  }
-
-  return proxy(request, `${BACKEND_URL}?${searchParams.toString()}`);
+  return proxy(request, BACKEND_URL, "GET");
 }
 
-/* =======================
-   POST: create user
-   ======================= */
 export async function POST(request) {
   const body = await request.json();
   return proxy(request, BACKEND_URL, "POST", body);
 }
 
-/* =======================
-   PATCH: update user
-   ======================= */
-export async function PATCH(request) {
-  const body = await request.json();
-  return proxy(request, `${BACKEND_URL}/${body.id}`, "PATCH", body);
-}
-
-/* =======================
-   DELETE: single & bulk
-   ======================= */
 export async function DELETE(request) {
   const { searchParams } = new URL(request.url);
-
-  // Single delete
-  if (searchParams.get("id")) {
-    return proxy(request, `${BACKEND_URL}/${searchParams.get("id")}`, "DELETE");
+  const userId = searchParams.get("user_id");
+  if (!userId) {
+    return NextResponse.json({ detail: "User ID is required" }, { status: 400 });
   }
-
-  // Bulk delete
-  const body = await request.json();
-  return proxy(request, `${BACKEND_URL}/bulk-delete`, "POST", body);
+  return proxy(request, `${BACKEND_URL}/${userId}`, "DELETE");
 }
