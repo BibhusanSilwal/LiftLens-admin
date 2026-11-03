@@ -1,16 +1,11 @@
 "use server"
-import { getRefreshToken, getToken, setRefreshToken, setToken, setUserType, setIsAdmin } from "@/app/lib/auth"
-import { cookies } from "next/headers"
-import { NextRequest, NextResponse } from "next/server"
+import { setRefreshToken, setToken, setUserType, setIsAdmin } from "@/app/lib/auth"
+import { NextResponse } from "next/server"
 const BACKEND_URL = (process.env.BACKEND_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "")
 const DJANGO_LOGIN_URL = `${BACKEND_URL}/auth/login/`
 
 export async function POST(request) {
-  const myAuthToken = getToken()
-  const myRefreshToken = getRefreshToken()
-  console.log(myAuthToken, myRefreshToken)
   const requestData = await request.json()
-  console.log("requestData", JSON.stringify(requestData)) // Log for debugging
 
   const requestOptions = {
     method: "POST",
@@ -19,28 +14,54 @@ export async function POST(request) {
     },
     body: JSON.stringify(requestData) // Stringify the parsed data
   }
-  // Fetch to Django
-  const response = await fetch(DJANGO_LOGIN_URL, requestOptions)
-  const responseData = await response.json()
+  // Fetch to Django. Some error responses may have no body or may not be JSON.
+  let response
+  try {
+    response = await fetch(DJANGO_LOGIN_URL, requestOptions)
+  } catch (error) {
+    console.error("Login backend request failed:", error)
+    return NextResponse.json(
+      { success: false, message: "Unable to reach the login service" },
+      { status: 502 }
+    )
+  }
+
+  let responseData = {}
+  const responseText = await response.text()
+  if (responseText) {
+    try {
+      responseData = JSON.parse(responseText)
+    } catch {
+      console.error("Login backend returned a non-JSON response")
+    }
+  }
   const { access, refresh, is_admin, user_type } = responseData
 
   // Create response
   const nextResponse = NextResponse.json(
     {
       success: response.ok,
-      message: response.ok ? "Login successful" : "Login failed",
+      message: response.ok
+        ? "Login successful"
+        : responseData.detail || responseData.message || "Login failed",
       token: access,  // Include token for client if needed (but it's in cookie)
       is_admin: is_admin,
       user_type: user_type
     },
     { status: response.ok ? 200 : 401 }
   )
-  if (response.ok) {
-    // Set cookie on the response
-    setToken(access)
-    setRefreshToken(refresh)
-    setUserType(user_type || "")
-    setIsAdmin(is_admin || false)
+  if (response.ok && access) {
+    // Persist the session cookies before returning the successful login response.
+    await setToken(access)
+    if (refresh) await setRefreshToken(refresh)
+    await setUserType(user_type || "")
+    await setIsAdmin(is_admin || false)
+  }
+  if (response.ok && !access) {
+    return NextResponse.json(
+      { success: false, message: "Login service returned an incomplete response" },
+      { status: 502 }
+    )
   }
   return nextResponse
 }

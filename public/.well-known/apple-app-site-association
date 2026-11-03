@@ -1,0 +1,23 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "REPLACE_WITH_APPLE_TEAM_ID.com.dev.liftLens",
+          "REPLACE_WITH_APPLE_TEAM_ID.com.dev.lift_lens"
+        ],
+        "components": [
+          {
+            "/": "/verify-email",
+            "?": {
+              "token": "*"
+            }
+          },
+          {
+            "/": "/join/challenge/*"
+          }
+        ]
+      }
+    ]
+  }
+}

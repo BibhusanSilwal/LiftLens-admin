@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.dev.lift_lens",
+      "sha256_cert_fingerprints": [
+        "15:8A:C4:A6:60:74:13:61:87:DA:12:9F:EF:8E:24:DB:6A:1A:52:76:7F:E5:5B:8D:7A:80:57:9B:76:91:04:3D"
+      ]
+    }
+  }
+]

@@ -18,7 +18,6 @@ export default function LoginPage() {
     setIsLoading(true); // New: Prevent double-submit
 
     const formData = new FormData(e.target);
-    console.log("formmmmm",formData)
     const objectFromForm = Object.fromEntries(formData);
     const jsonData = JSON.stringify(objectFromForm);
 
@@ -32,8 +31,15 @@ export default function LoginPage() {
 
     try {
       const response = await fetch(LOGIN_URL, requestOptions);
-      const data = await response.json();
-      console.log(data);
+      const responseText = await response.text();
+      let data = {};
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          throw new Error("Login service returned an invalid response.");
+        }
+      }
 
       if (response.ok && (data.is_admin || data.user_type === 'gym')) { // Check for admin or gym role
         // Redirect to dashboard/users for gym, or dashboard for admin
@@ -65,8 +71,8 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error("Network Error", {
-        description: "Please check your connection and try again.",
+      toast.error("Login Error", {
+        description: error.message || "Please check your connection and try again.",
         style: {
           background: '#dc2626',
           color: 'white',
