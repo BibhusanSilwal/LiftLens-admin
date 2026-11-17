@@ -7,7 +7,7 @@ export default async function HomePage() {
 
   if (token) {
     if (userType === 'gym') {
-      redirect('/dashboard/users');
+      redirect('/dashboard/today');
     } else {
       redirect('/dashboard');
     }

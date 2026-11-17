@@ -152,7 +152,6 @@ export default function UsersPage() {
       );
 
   const normalUsers = displayedUsers.filter(u => u.user_type !== 'gym');
-  const gymUsers = displayedUsers.filter(u => u.user_type === 'gym');
 
   /* =======================
      CREATE / EDIT
@@ -240,14 +239,6 @@ export default function UsersPage() {
           payload.id = selectedUser.id;
         }
 
-        if (formData.user_type === 'gym') {
-          payload.gym_name = formData.gym_name.trim();
-          payload.phone = formData.phone.trim();
-          payload.address = formData.address.trim();
-          payload.city = formData.city.trim();
-          payload.description = formData.description.trim();
-          payload.website = formData.website.trim();
-        }
 
         res = await fetch("/api/users", {
           method: isEdit ? "PATCH" : "POST",
@@ -401,7 +392,8 @@ export default function UsersPage() {
           {/* Table 1: Normal Users */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-3 border-b border-gray-850">
-              <h2 className="text-lg font-bold text-white">Normal Users</h2>
+              <h2 className="text-lg font-bold text-white">Users</h2>
+              <p className="text-sm text-gray-400">Gym owner accounts are created and managed in <a href="/dashboard/gyms" className="text-orange-400 hover:underline">Gym management</a>.</p>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -447,52 +439,6 @@ export default function UsersPage() {
             </CardContent>
           </Card>
 
-          {/* Table 2: Gym Accounts */}
-          <Card className="bg-gray-900 border-gray-800">
-            <CardHeader className="pb-3 border-b border-gray-850">
-              <h2 className="text-lg font-bold text-white">Gym Accounts</h2>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Streak</TableHead>
-                    <TableHead>Last Active</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-
-                <TableBody>
-                  {!loading && gymUsers.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-gray-400 py-6">
-                        No gym accounts found
-                      </TableCell>
-                    </TableRow>
-                  )}
-
-                  {gymUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.full_name || "-"}</TableCell>
-                      <TableCell>{user.streak_days}</TableCell>
-                      <TableCell>{formatLastActive(user.last_active)}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(user)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => requestDeleteUser(user)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
         </div>
       )}
 
@@ -573,89 +519,7 @@ export default function UsersPage() {
                   <Label>Admin</Label>
                 </div>
 
-                {userType !== 'gym' && (
-                  <div>
-                    <Label>User Type</Label>
-                    <select
-                      value={formData.user_type || "normal"}
-                      onChange={(e) =>
-                        setFormData({ ...formData, user_type: e.target.value })
-                      }
-                      className="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-3 text-white focus:outline-none focus:border-red-500"
-                    >
-                      <option value="normal">Normal User</option>
-                      <option value="gym">Gym Account</option>
-                    </select>
-                  </div>
-                )}
 
-                {/* Additional gym profile creation fields */}
-                {formData.user_type === 'gym' && (
-                  <div className="space-y-4 border-t border-gray-700 pt-4 mt-2">
-                    <h3 className="text-sm font-semibold text-gray-400">Gym Information</h3>
-                    <div>
-                      <Label>Gym Name</Label>
-                      <Input
-                        value={formData.gym_name || ""}
-                        onChange={(e) =>
-                          setFormData({ ...formData, gym_name: e.target.value })
-                        }
-                        className="bg-gray-800 border-gray-700 text-white"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label>Phone</Label>
-                      <Input
-                        value={formData.phone || ""}
-                        onChange={(e) =>
-                          setFormData({ ...formData, phone: e.target.value })
-                        }
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div>
-                      <Label>Address</Label>
-                      <Input
-                        value={formData.address || ""}
-                        onChange={(e) =>
-                          setFormData({ ...formData, address: e.target.value })
-                        }
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div>
-                      <Label>City</Label>
-                      <Input
-                        value={formData.city || ""}
-                        onChange={(e) =>
-                          setFormData({ ...formData, city: e.target.value })
-                        }
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div>
-                      <Label>Description</Label>
-                      <Input
-                        value={formData.description || ""}
-                        onChange={(e) =>
-                          setFormData({ ...formData, description: e.target.value })
-                        }
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div>
-                      <Label>Website</Label>
-                      <Input
-                        value={formData.website || ""}
-                        onChange={(e) =>
-                          setFormData({ ...formData, website: e.target.value })
-                        }
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                  </div>
-                )}
               </>
             )}
 

@@ -257,7 +257,7 @@ export default function NotificationsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Post Notification</h1>
           <p className="text-sm text-gray-400">
-            Select a target user from the directory to notify them, or choose 'All Users' to broadcast.
+            Select a target user from the directory to notify them, or choose &lsquo;All Users&rsquo; to broadcast.
           </p>
         </div>
       </div>

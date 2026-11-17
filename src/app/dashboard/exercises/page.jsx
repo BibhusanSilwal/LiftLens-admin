@@ -104,7 +104,7 @@ export default function ExercisesPage() {
       const data = await res.json();
       setExercises(data);
     } catch {
-      alert("Failed to fetch exercises");
+      toast.error("Failed to fetch exercises");
     }
   };
 
@@ -310,7 +310,7 @@ export default function ExercisesPage() {
       setSelectedExercise(null);
       toast.success("Exercise deleted successfully");
     } catch {
-      alert("Failed to delete exercise");
+      toast.error("Failed to delete exercise");
     }
   };
 
