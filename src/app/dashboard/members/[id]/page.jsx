@@ -63,6 +63,13 @@ export default function MemberDetailPage() {
         <p className="mt-2 text-xs text-gray-500">{t("Viewing this profile is recorded in the gym's access log.")}</p>
       </div>
 
+      {member.status === 'cancelled' && (
+        <div className="flex items-start gap-3 rounded-xl border border-white/15 bg-white/5 p-4 text-sm text-gray-300">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
+          <p>{t('Left the gym on {date}. Their contact, health and emergency details are no longer shared. A running plan stays valid until it ends if they rejoin; refunds are handled at the desk.', { date: formatDate(member.left_at) })}</p>
+        </div>
+      )}
+
       {!member.profile_complete && (
         <div className="flex items-start gap-3 rounded-xl border border-orange-500/40 bg-orange-950/30 p-4 text-sm text-orange-100">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-orange-400" />

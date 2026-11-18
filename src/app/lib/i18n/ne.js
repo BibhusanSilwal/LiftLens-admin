@@ -246,6 +246,7 @@ const ne = {
 
   // ─── Member profile ───────────────────────────────────────
   'Member profile': 'सदस्य प्रोफाइल',
+  'Left the gym on {date}. Their contact, health and emergency details are no longer shared. A running plan stays valid until it ends if they rejoin; refunds are handled at the desk.': '{date} मा जिम छाड्नुभयो। उहाँको सम्पर्क, स्वास्थ्य र आपतकालीन विवरण अब साझा हुँदैन। फेरि जोडिनुभयो भने चलिरहेको योजना सकिने मितिसम्म मान्य रहन्छ; पैसा फिर्ता डेस्कमा गरिन्छ।',
   "Viewing this profile is recorded in the gym's access log.": 'यो प्रोफाइल हेरेको कुरा जिमको पहुँच लगमा रेकर्ड हुन्छ।',
   'Profile incomplete: missing {fields}. Ask the member to add it in the app (Profile → Profile details).': 'प्रोफाइल अधुरो छ: {fields} छैन। सदस्यलाई एपमा थप्न भन्नुहोस् (Profile → Profile details)।',
   'phone number': 'फोन नम्बर',
