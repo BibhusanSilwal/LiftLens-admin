@@ -800,6 +800,19 @@ const ne = {
   'Link copied': 'लिङ्क कपी भयो',
   "Couldn't copy the link": 'लिङ्क कपी गर्न सकिएन',
   'No active gym is available for this account.': 'यो खातामा कुनै सक्रिय जिम छैन।',
+  // ─── Command menu & undo ──────────────────────────────────
+  'Undo': 'पूर्ववत् गर्नुहोस्',
+  'Actions': 'कार्यहरू',
+  'No results.': 'कुनै नतिजा भेटिएन।',
+  'Command menu': 'कमाण्ड मेनु',
+  'Search pages, actions or members…': 'पृष्ठ, कार्य वा सदस्य खोज्नुहोस्…',
+  'Search pages, actions or members': 'पृष्ठ, कार्य वा सदस्य खोज्नुहोस्',
+  'Search pages…': 'पृष्ठ खोज्नुहोस्…',
+  'Check in a member': 'सदस्यलाई चेक-इन गर्नुहोस्',
+  'to move': 'सार्न',
+  'to open': 'खोल्न',
+  'to toggle': 'खोल्न/बन्द गर्न',
+  'to search the page': 'पृष्ठमा खोज्न',
 };
 
 export default ne;

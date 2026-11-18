@@ -10,7 +10,7 @@ import { PosNav } from '../../../../components/PosNav';
 import { Skeleton, SkeletonLines, SkeletonRows } from '../../../../components/Skeleton';
 import { useConfirm } from '../../../../components/ConfirmProvider';
 import { useT } from '../../../../components/I18nProvider';
-import { formatDateTime, formatMoney, gymFetch, isoDate, METHOD_LABELS, postJson, toMinor, useGymId } from '../../../lib/gym-api';
+import { formatDateTime, formatMoney, gymFetch, isoDate, METHOD_LABELS, postJson, toMinor, useGymId, useIdempotencyKey } from '../../../lib/gym-api';
 import { useCapabilities } from '../../CapabilityProvider';
 
 const STATUS = { completed: 'text-green-300', partially_refunded: 'text-yellow-300', refunded: 'text-red-300' };
@@ -23,15 +23,17 @@ function RefundDialog({ gymId, sale, onClose, onDone }) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const idempotency = useIdempotencyKey();
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true); setError('');
     try {
       const lines = sale.items.map((i) => ({ sale_item_id: i.id, quantity: Number(qty[i.id] || 0) })).filter((l) => l.quantity > 0);
-      const result = await postJson(gymId, `/pos/sales/${sale.id}/refund`, { lines, restock, to_store_credit: toCredit, reason });
+      const result = await postJson(gymId, `/pos/sales/${sale.id}/refund`, { lines, restock, to_store_credit: toCredit, reason }, 'POST', { idempotencyKey: idempotency.get() });
+      idempotency.settle();
       toast.success(t('Refunded {amount}', { amount: formatMoney(result.refunded) }));
       onDone();
-    } catch (e) { setError(e.message); setBusy(false); }
+    } catch (e) { idempotency.settle(e); setError(e.message); setBusy(false); }
   };
   return (
     <Modal title={t('Refund {receipt}', { receipt: sale.receipt_no })} description={t("Each item's share of what was actually paid is refunded, through the original payment methods.")} onClose={onClose}>

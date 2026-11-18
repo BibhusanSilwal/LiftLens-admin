@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Download, Undo2 } from 'lucide-react';
@@ -9,7 +9,8 @@ import { Card } from '../../../components/ui/Card';
 import { DateTimeInput, ErrorNote, FormField, inputClass, Modal, SubmitButton } from '../../../components/Modal';
 import { SkeletonRows, SkeletonStats } from '../../../components/Skeleton';
 import { useT } from '../../../components/I18nProvider';
-import { formatDateTime, formatMoney, gymFetch, isoDate, METHOD_LABELS, PAYMENT_METHODS, postJson, toMinor, useGymId } from '../../lib/gym-api';
+import { formatDateTime, formatMoney, isoDate, METHOD_LABELS, PAYMENT_METHODS, postJson, toMinor, useGymId, useIdempotencyKey } from '../../lib/gym-api';
+import { errorMessage, useGymData } from '../../lib/use-gym-data';
 import { useCapabilities } from '../CapabilityProvider';
 
 const STATUS_STYLES = {
@@ -29,16 +30,18 @@ function RefundDialog({ gymId, payment, onClose, onDone }) {
   const [toCredit, setToCredit] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const idempotency = useIdempotencyKey();
   const submit = async (event) => {
     event.preventDefault();
     const minor = toMinor(amount);
     if (!Number.isFinite(minor) || minor <= 0) return setError(t('Enter a valid amount.'));
     setBusy(true); setError('');
     try {
-      await postJson(gymId, `/payments/${payment.id}/refund`, { amount_minor: minor, reason, to_store_credit: toCredit });
+      await postJson(gymId, `/payments/${payment.id}/refund`, { amount_minor: minor, reason, to_store_credit: toCredit }, 'POST', { idempotencyKey: idempotency.get() });
+      idempotency.settle();
       toast.success(t('Refund recorded'));
       onDone();
-    } catch (e) { setError(e.message); setBusy(false); }
+    } catch (e) { idempotency.settle(e); setError(e.message); setBusy(false); }
   };
   return (
     <Modal title={t('Refund {receipt}', { receipt: payment.receipt_no })} description={t('{amount} via {method}. Up to {refundable} can be refunded.', { amount: formatMoney(payment.amount), method: t(METHOD_LABELS[payment.method] || payment.method), refundable: formatMoney({ ...payment.amount, amount_minor: refundable }) })} onClose={onClose}>
@@ -69,24 +72,15 @@ export default function PaymentsPage() {
   const [from, setFrom] = useState(isoDate(new Date(now.getFullYear(), now.getMonth(), 1)));
   const [to, setTo] = useState(isoDate(now));
   const [method, setMethod] = useState('');
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
   const [refunding, setRefunding] = useState(null);
-  const [version, setVersion] = useState(0);
-  const load = () => { setData(null); setVersion((v) => v + 1); };
-
-  useEffect(() => {
-    if (!gymId) return undefined;
-    let cancelled = false;
-    const query = new URLSearchParams({ page_size: '200' });
-    if (from) query.set('date_from', from);
-    if (to) query.set('date_to', to);
-    if (method) query.set('method', method);
-    gymFetch(gymId, `/payments?${query}`)
-      .then((result) => { if (!cancelled) { setData(result); setError(''); } })
-      .catch((e) => { if (!cancelled) setError(e.message); });
-    return () => { cancelled = true; };
-  }, [gymId, from, to, method, version]);
+  const query = new URLSearchParams({ page_size: '200' });
+  if (from) query.set('date_from', from);
+  if (to) query.set('date_to', to);
+  if (method) query.set('method', method);
+  // Live: takings and refundable amounts must never come from an earlier visit's cache.
+  const { data, error: loadError, mutate } = useGymData(`/payments?${query}`, { live: true, keepPreviousData: false });
+  const error = errorMessage(loadError);
+  const load = () => mutate();
 
   const exportCsv = () => {
     const blob = new Blob([toCsv(data?.results ?? [])], { type: 'text/csv' });
@@ -95,7 +89,7 @@ export default function PaymentsPage() {
     anchor.download = `payments-${from}-to-${to}.csv`;
     anchor.click();
   };
-  const filter = (setter) => (e) => { setData(null); setter(e.target.value); };
+  const filter = (setter) => (e) => setter(e.target.value);
 
   const totals = data?.totals;
   return (

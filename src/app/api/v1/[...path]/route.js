@@ -13,7 +13,12 @@ async function proxy(request, context) {
   const token = await getToken();
   const { path } = await context.params;
   const target = `${API_BASE_URL}/v1/${path.map(encodeURIComponent).join('/')}${new URL(request.url).search}`;
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const idempotencyKey = request.headers.get('idempotency-key');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+  };
   const hasBody = !['GET', 'HEAD'].includes(request.method);
   const body = hasBody ? await request.text() : undefined;
   const response = await fetch(target, {
@@ -25,6 +30,9 @@ async function proxy(request, context) {
   const text = await response.text();
   return new NextResponse(response.status === 204 ? null : text, {
     status: response.status,
-    headers: { 'Content-Type': response.headers.get('content-type') || 'application/json' },
+    headers: {
+      'Content-Type': response.headers.get('content-type') || 'application/json',
+      ...(response.headers.get('idempotent-replayed') ? { 'Idempotent-Replayed': 'true' } : {}),
+    },
   });
 }

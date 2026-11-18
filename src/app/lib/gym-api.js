@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { apiFetch } from './api';
 import { useCapabilities } from '../dashboard/CapabilityProvider';
 
@@ -19,8 +19,39 @@ export function gymFetch(gymId, path, options = {}) {
   return apiFetch(`/api/v1/gyms/${gymId}${path}`, { cache: 'no-store', ...options });
 }
 
-export function postJson(gymId, path, body, method = 'POST') {
-  return gymFetch(gymId, path, { method, body: JSON.stringify(body ?? {}) });
+/**
+ * POST/PATCH JSON to a gym endpoint. Pass `{ idempotencyKey }` for writes that move money or
+ * create records, so a retry or double-click replays the first result instead of repeating it.
+ */
+export function postJson(gymId, path, body, method = 'POST', { idempotencyKey } = {}) {
+  return gymFetch(gymId, path, {
+    method,
+    body: JSON.stringify(body ?? {}),
+    ...(idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
+  });
+}
+
+function newIdempotencyKey() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/**
+ * One Idempotency-Key per user action. `get()` returns the same key until `settle(error)`:
+ * success or a 4xx clears it (the next submit is a new action, possibly with edited fields);
+ * a network error or 5xx keeps it, so trying again cannot repeat a write that already landed.
+ */
+export function useIdempotencyKey() {
+  const ref = useRef(null);
+  return useMemo(() => ({
+    get: () => {
+      if (!ref.current) ref.current = newIdempotencyKey();
+      return ref.current;
+    },
+    settle: (error) => {
+      if (!error || (error.status >= 400 && error.status < 500)) ref.current = null;
+    },
+  }), []);
 }
 
 /** {amount_minor, currency} -> "NPR 3,000" */

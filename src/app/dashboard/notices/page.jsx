@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { BellRing, Clock, Pencil, Pin, Plus, Trash2, Users } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { DateTimeInput, ErrorNote, FormField, inputClass, Modal, SubmitButton } from '../../../components/Modal';
 import { SkeletonCards } from '../../../components/Skeleton';
-import { useConfirm } from '../../../components/ConfirmProvider';
 import { useT } from '../../../components/I18nProvider';
 import { formatDateTime, gymFetch, postJson, useGymId } from '../../lib/gym-api';
+import { removeWithUndo } from '../../lib/undo';
+import { errorMessage, useGymData } from '../../lib/use-gym-data';
 import { useCapabilities } from '../CapabilityProvider';
 
 const CATEGORIES = [['general', 'General'], ['closure', 'Closure / timing change'], ['event', 'Event'], ['offer', 'Offer'], ['rule', 'Rules & safety']];
@@ -105,32 +106,24 @@ function NoticeForm({ gymId, notice, plans, onClose, onSaved }) {
 export default function NoticesPage() {
   const gymId = useGymId();
   const t = useT();
-  const confirm = useConfirm();
   const { can } = useCapabilities();
-  const [notices, setNotices] = useState(null);
-  const [plans, setPlans] = useState([]);
-  const [error, setError] = useState('');
   const [editing, setEditing] = useState(null);
-  const [version, setVersion] = useState(0);
-  const reload = () => { setNotices(null); setVersion((v) => v + 1); };
+  const { data: notices, error: noticesError, mutate } = useGymData('/notices');
+  const { data: plans = [] } = useGymData('/plans');
+  const error = errorMessage(noticesError);
+  const reload = () => mutate();
 
-  useEffect(() => {
-    if (!gymId) return undefined;
-    let cancelled = false;
-    Promise.all([gymFetch(gymId, '/notices'), gymFetch(gymId, '/plans')])
-      .then(([list, planList]) => { if (!cancelled) { setNotices(list); setPlans(planList); setError(''); } })
-      .catch((e) => { if (!cancelled) setError(e.message); });
-    return () => { cancelled = true; };
-  }, [gymId, version]);
-
-  const remove = async (notice) => {
-    const ok = await confirm({
-      title: t('Delete "{title}"?', { title: notice.title }),
-      message: t("It disappears from the app. Push messages already sent can't be recalled."),
-      confirmLabel: t('Delete'),
+  // Undo instead of a confirm: hidden now, deleted when the toast closes.
+  const remove = (notice) => {
+    mutate((list) => list?.filter((n) => n.id !== notice.id), { revalidate: false });
+    removeWithUndo({
+      message: t('Notice deleted'),
+      description: t("It disappears from the app. Push messages already sent can't be recalled."),
+      undoLabel: t('Undo'),
+      commit: ({ keepalive }) => gymFetch(gymId, `/notices/${notice.id}`, { method: 'DELETE', keepalive }),
+      onUndo: () => mutate(),
+      onCommitted: () => mutate(),
     });
-    if (!ok) return;
-    try { await gymFetch(gymId, `/notices/${notice.id}`, { method: 'DELETE' }); toast.success(t('Notice deleted')); reload(); } catch (e) { toast.error(e.message); }
   };
 
   const canManage = can('notices.manage');

@@ -9,7 +9,7 @@ import { DateTimeInput, ErrorNote, FormField, inputClass, Modal, SubmitButton } 
 import { Skeleton, SkeletonCards, SkeletonLines, SkeletonRows } from '../../../components/Skeleton';
 import { useConfirm } from '../../../components/ConfirmProvider';
 import { useT } from '../../../components/I18nProvider';
-import { formatDate, formatDateTime, formatMoney, fromMinor, gymFetch, PAYMENT_METHODS, postJson, toMinor, useGymId } from '../../lib/gym-api';
+import { formatDate, formatDateTime, formatMoney, fromMinor, gymFetch, PAYMENT_METHODS, postJson, toMinor, useGymId, useIdempotencyKey } from '../../lib/gym-api';
 import { useCapabilities } from '../CapabilityProvider';
 
 const STATE_STYLES = {
@@ -171,20 +171,23 @@ function GiftCardForm({ gymId, canComp, onClose, onSaved }) {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [gymId, v.recipient_query, v.recipient]);
 
+  const idempotency = useIdempotencyKey();
   const submit = async (event) => {
     event.preventDefault();
     const amount = toMinor(v.amount);
     if (!Number.isFinite(amount) || amount <= 0) return setError(t('Enter the card value.'));
     setBusy(true); setError('');
+    const idempotencyKey = idempotency.get();
     try {
       const card = await postJson(gymId, '/gift-cards', {
         amount_minor: amount, recipient_member_id: v.recipient?.user_id ?? null, recipient_name: v.recipient ? '' : v.recipient_name.trim(),
         expires_at: v.expires ? new Date(`${v.expires}T23:59:59`).toISOString() : null,
         ...(v.sold ? { payment_method: v.method, payment_reference: v.reference.trim() } : {}),
-      });
+      }, 'POST', { idempotencyKey });
+      idempotency.settle();
       toast.success(t('Gift card {code} created', { code: card.code }));
       onSaved(card);
-    } catch (e) { setError(e.message); setBusy(false); }
+    } catch (e) { idempotency.settle(e); setError(e.message); setBusy(false); }
   };
 
   return (

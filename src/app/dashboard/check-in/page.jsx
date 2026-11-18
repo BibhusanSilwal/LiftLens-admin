@@ -160,7 +160,7 @@ export default function CheckInPage() {
           <Card className="border-white/10 bg-[#151515] p-5">
             <h2 className="font-medium">{t('Manual check-in')}</h2>
             <p className="mt-1 text-xs text-gray-500">{t("For members without their phone. Staff can check in anyone; you'll see a warning if their plan isn't active.")}</p>
-            <div className="relative mt-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Search member by name, email or phone')} className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] py-2.5 pl-10 pr-3 text-sm" /></div>
+            <div className="relative mt-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" /><input data-page-search value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Search member by name, email or phone')} className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] py-2.5 pl-10 pr-3 text-sm" /></div>
             {visibleMatches.length > 0 && (
               <ul className="mt-2 divide-y divide-white/5 rounded-lg border border-white/10">
                 {visibleMatches.map((member) => (

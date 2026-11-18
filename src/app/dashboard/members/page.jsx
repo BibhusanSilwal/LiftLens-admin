@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -11,7 +11,8 @@ import { ErrorNote, FormField, inputClass, Modal, SubmitButton } from '../../../
 import { SkeletonRows } from '../../../components/Skeleton';
 import { useT } from '../../../components/I18nProvider';
 import { apiFetch } from '../../lib/api';
-import { formatDate, formatMoney, gymFetch, useGymId } from '../../lib/gym-api';
+import { formatDate, formatMoney, useGymId } from '../../lib/gym-api';
+import { errorMessage, useGymData } from '../../lib/use-gym-data';
 import { StandingBadge } from '../../../components/StandingBadge';
 import { useCapabilities } from '../CapabilityProvider';
 
@@ -78,37 +79,24 @@ function MembersView() {
   const planId = params.get('plan') || '';
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
-  const [data, setData] = useState(null);
-  const [plans, setPlans] = useState([]);
-  const [error, setError] = useState('');
   const [showAdd, setShowAdd] = useState(params.get('add') === '1');
-  const [version, setVersion] = useState(0);
-  const load = () => { setData(null); setVersion((v) => v + 1); };
+  const query = new URLSearchParams({ page_size: '200' });
+  if (status) query.set('status', status);
+  if (planId) query.set('plan_id', planId);
+  if (submittedSearch) query.set('search', submittedSearch);
+  // A new filter shows a skeleton, not the previous filter's rows; filters seen before load from cache.
+  const { data, error: loadError, mutate } = useGymData(`/members?${query}`, { keepPreviousData: false });
+  const { data: plans = [] } = useGymData('/plans');
+  const error = errorMessage(loadError);
+  const load = () => mutate();
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value); else next.delete(key);
     next.delete('add');
-    setData(null);
     router.replace(`${pathname}${next.toString() ? `?${next}` : ''}`);
   };
 
-  useEffect(() => {
-    if (!gymId) return undefined;
-    let cancelled = false;
-    const query = new URLSearchParams({ page_size: '200' });
-    if (status) query.set('status', status);
-    if (planId) query.set('plan_id', planId);
-    if (submittedSearch) query.set('search', submittedSearch);
-    gymFetch(gymId, `/members?${query}`)
-      .then((result) => { if (!cancelled) { setData(result); setError(''); } })
-      .catch((e) => { if (!cancelled) setError(e.message); });
-    return () => { cancelled = true; };
-  }, [gymId, status, planId, submittedSearch, version]);
-  useEffect(() => {
-    if (!gymId) return;
-    gymFetch(gymId, '/plans').then(setPlans).catch(() => {});
-  }, [gymId]);
 
   // Keep the tab counts from the last response while a new filter loads.
   const [lastCounts, setLastCounts] = useState({});
@@ -133,8 +121,8 @@ function MembersView() {
       </div>
 
       <Card className="border-white/10 bg-[#151515] p-4">
-        <form className="flex flex-col gap-3 md:flex-row" onSubmit={(e) => { e.preventDefault(); if (search.trim() !== submittedSearch) setData(null); setSubmittedSearch(search.trim()); }}>
-          <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Search name, email or phone')} className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] py-2.5 pl-10 pr-3 text-sm" /></div>
+        <form className="flex flex-col gap-3 md:flex-row" onSubmit={(e) => { e.preventDefault(); setSubmittedSearch(search.trim()); }}>
+          <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" /><input data-page-search value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Search name, email or phone')} className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] py-2.5 pl-10 pr-3 text-sm" /></div>
           <select value={planId} onChange={(e) => setParam('plan', e.target.value)} className="rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm"><option value="">{t('All plans')}</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select>
           <Button type="submit" variant="outline">{t('Search')}</Button>
         </form>

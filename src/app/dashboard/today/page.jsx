@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CalendarClock, CreditCard, DoorOpen, ListChecks, Megaphone, QrCode, ShoppingCart, Snowflake, UserPlus, Users, Wallet } from 'lucide-react';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Skeleton, SkeletonLines } from '../../../components/Skeleton';
 import { useT } from '../../../components/I18nProvider';
-import { apiFetch } from '../../lib/api';
+import { errorMessage, useApiData } from '../../lib/use-gym-data';
 import { formatMoney } from '../../lib/gym-api';
 import { useCapabilities } from '../CapabilityProvider';
 
@@ -21,9 +20,9 @@ const cards = [
 export default function TodayPage() {
   const { can } = useCapabilities();
   const t = useT();
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => { apiFetch('/api/today').then(setData).catch((e) => setError(e.message)); }, []);
+  // Live: check-ins and expiring memberships are acted on straight away.
+  const { data, error: loadError } = useApiData('/api/today', { live: true });
+  const error = errorMessage(loadError);
 
   const actions = [
     can('attendance.manage') && ['/dashboard/check-in', 'Open check-in screen', QrCode],

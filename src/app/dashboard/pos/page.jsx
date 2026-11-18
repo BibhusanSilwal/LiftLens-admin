@@ -9,7 +9,7 @@ import { FormField, inputClass, Modal } from '../../../components/Modal';
 import { PosNav } from '../../../components/PosNav';
 import { Skeleton } from '../../../components/Skeleton';
 import { useT } from '../../../components/I18nProvider';
-import { formatDateTime, formatMoney, fromMinor, gymFetch, METHOD_LABELS, PAYMENT_METHODS, postJson, toMinor, useGymId } from '../../lib/gym-api';
+import { formatDateTime, formatMoney, fromMinor, gymFetch, METHOD_LABELS, PAYMENT_METHODS, postJson, toMinor, useGymId, useIdempotencyKey } from '../../lib/gym-api';
 
 function Receipt({ sale, gymName, tendered, onClose }) {
   const t = useT();
@@ -117,6 +117,7 @@ export default function PosSellPage() {
   // After a sale the catalogue reloads (stock changed), behind a skeleton.
   const reset = () => { setCart({}); setMember(null); setCredit(0); setCodes({ promo: '', giftCard: '' }); setUseCredit(false); setReference(''); setTendered(''); setQuote({ data: null, error: '' }); setCatalogue((c) => ({ ...c, loaded: false })); setVersion((v) => v + 1); };
 
+  const idempotency = useIdempotencyKey();
   const complete = async () => {
     if (!items.length || quote.error) return;
     if (method === 'cash' && change != null && change < 0) { toast.error(t('Cash tendered is less than the amount due.')); return; }
@@ -125,10 +126,11 @@ export default function PosSellPage() {
       const sale = await postJson(gymId, '/pos/sales', {
         items, member_id: member?.user_id ?? null, promo_code: codes.promo.trim() || null, gift_card_code: codes.giftCard.trim() || null,
         use_credit: useCredit, payment: { method, reference: reference.trim() },
-      });
+      }, 'POST', { idempotencyKey: idempotency.get() });
+      idempotency.settle();
       toast.success(t('Sale {receipt} complete', { receipt: sale.receipt_no }));
       setReceipt({ sale, tendered: method === 'cash' ? tenderedMinor : null });
-    } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e) { idempotency.settle(e); toast.error(e.message); } finally { setBusy(false); }
   };
 
   return (

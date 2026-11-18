@@ -11,8 +11,9 @@ import { StandingBadge } from '../../../../components/StandingBadge';
 import { useT } from '../../../../components/I18nProvider';
 import {
   addDays, formatDate, formatDateTime, formatMoney, fromMinor, gymFetch, isoDate, METHOD_LABELS,
-  PAYMENT_METHODS, postJson, toMinor,
+  PAYMENT_METHODS, postJson, toMinor, useIdempotencyKey,
 } from '../../../lib/gym-api';
+import { errorMessage, useApiData, useGymData } from '../../../lib/use-gym-data';
 import { useCapabilities } from '../../CapabilityProvider';
 
 // ─── Shared form bits ───────────────────────────────────────
@@ -39,11 +40,17 @@ const emptyPayment = (amountMinor = 0) => ({ amount: amountMinor ? fromMinor(amo
 function useSubmit(onDone) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const idempotency = useIdempotencyKey();
+  // `action` receives the Idempotency-Key for this submit; pass it to postJson for money/record writes.
   const run = async (event, action, successMessage) => {
     event.preventDefault();
     setBusy(true); setError('');
     // On success the dialog closes and the panel reloads behind a skeleton, so busy stays on until unmount.
-    try { await action(); toast.success(successMessage); onDone(); } catch (e) { setError(e.message); setBusy(false); }
+    try {
+      await action(idempotency.get());
+      idempotency.settle();
+      toast.success(successMessage); onDone();
+    } catch (e) { idempotency.settle(e); setError(e.message); setBusy(false); }
   };
   return { busy, error, run, setError };
 }
@@ -131,7 +138,7 @@ function SellDialog({ gymId, userId, plans, current, credit, canDiscount, onClos
   };
   const setCode = (key) => (e) => { setCodes((c) => ({ ...c, [key]: e.target.value.toUpperCase() })); setAmountEdited(false); };
 
-  const submit = (event) => run(event, async () => {
+  const submit = (event) => run(event, async (idempotencyKey) => {
     if (quoteError) throw new Error(quoteError);
     const body = {
       plan_id: Number(planId), use_credit: useCredit, payment: paymentBody({ ...payment, amount }, t),
@@ -139,7 +146,7 @@ function SellDialog({ gymId, userId, plans, current, credit, canDiscount, onClos
     };
     if (startDate) body.start_date = startDate;
     if (customPrice) body.price_amount_minor = priceMinor;
-    await postJson(gymId, `/members/${userId}/subscriptions`, body);
+    await postJson(gymId, `/members/${userId}/subscriptions`, body, 'POST', { idempotencyKey });
   }, isRenewal ? t('Renewal sold') : t('Plan sold'));
 
   if (!plans.length) return <Modal title={t('Sell a plan')} onClose={onClose}><p className="text-sm text-gray-400">{t('Create a membership plan first (Plans page).')}</p></Modal>;
@@ -173,9 +180,9 @@ function PayDialog({ gymId, sub, credit, onClose, onDone }) {
   const [useCredit, setUseCredit] = useState(false);
   const [giftCard, setGiftCard] = useState('');
   const { busy, error, run } = useSubmit(onDone);
-  const submit = (event) => run(event, () => postJson(gymId, `/subscriptions/${sub.id}/payments`, {
+  const submit = (event) => run(event, (idempotencyKey) => postJson(gymId, `/subscriptions/${sub.id}/payments`, {
     payment: paymentBody(payment, t), use_credit: useCredit, gift_card_code: giftCard.trim() || null,
-  }), t('Payment recorded'));
+  }, 'POST', { idempotencyKey }), t('Payment recorded'));
   return (
     <Modal title={t('Take payment')} description={t('{plan}: {amount} due. Store credit and gift cards are used first; enter only the cash/card part below.', { plan: sub.plan.name, amount: formatMoney(sub.balance_due) })} onClose={onClose} size="max-w-2xl">
       <form onSubmit={submit} className="space-y-4">
@@ -195,10 +202,10 @@ function CreditDialog({ gymId, userId, credit, onClose, onDone }) {
   const [mode, setMode] = useState('add');
   const [note, setNote] = useState('');
   const { busy, error, run } = useSubmit(onDone);
-  const submit = (event) => run(event, () => {
+  const submit = (event) => run(event, (idempotencyKey) => {
     const minor = toMinor(amount);
     if (!Number.isFinite(minor) || minor <= 0) throw new Error(t('Enter an amount.'));
-    return postJson(gymId, `/members/${userId}/credit`, { delta_minor: mode === 'add' ? minor : -minor, note });
+    return postJson(gymId, `/members/${userId}/credit`, { delta_minor: mode === 'add' ? minor : -minor, note }, 'POST', { idempotencyKey });
   }, t('Store credit updated'));
   return (
     <Modal title={t('Adjust store credit')} description={t('Current balance: {amount}', { amount: formatMoney(credit) })} onClose={onClose}>
@@ -221,7 +228,7 @@ function ExtendDialog({ gymId, sub, onClose, onDone }) {
   const [reason, setReason] = useState('');
   const { busy, error, run } = useSubmit(onDone);
   const preview = mode === 'days' ? addDays(sub.end_date, Number(days) || 0) : endDate;
-  const submit = (event) => run(event, () => postJson(gymId, `/subscriptions/${sub.id}/extend`, mode === 'days' ? { days: Number(days), reason } : { new_end_date: endDate, reason }), t('Membership updated'));
+  const submit = (event) => run(event, (idempotencyKey) => postJson(gymId, `/subscriptions/${sub.id}/extend`, mode === 'days' ? { days: Number(days), reason } : { new_end_date: endDate, reason }, 'POST', { idempotencyKey }), t('Membership updated'));
   return (
     <Modal title={t('Extend or fix dates')} description={t('Currently ends {date}. Every change is logged with your reason.', { date: formatDate(sub.end_date) })} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
@@ -271,7 +278,7 @@ function ChangePlanDialog({ gymId, sub, plans, onClose, onDone }) {
   const [payment, setPayment] = useState(emptyPayment());
   const [reason, setReason] = useState('');
   const { busy, error, run } = useSubmit(onDone);
-  const submit = (event) => run(event, () => postJson(gymId, `/subscriptions/${sub.id}/change-plan`, { plan_id: Number(planId), payment: paymentBody(payment, t), reason }), t('Plan changed'));
+  const submit = (event) => run(event, (idempotencyKey) => postJson(gymId, `/subscriptions/${sub.id}/change-plan`, { plan_id: Number(planId), payment: paymentBody(payment, t), reason }, 'POST', { idempotencyKey }), t('Plan changed'));
   return (
     <Modal title={t('Upgrade or downgrade')} description={t('The new plan starts today. The unused, paid part of the current plan is credited and applied to the new one; anything left over stays as store credit.')} onClose={onClose} size="max-w-2xl">
       {!options.length ? <p className="text-sm text-gray-400">{t('There are no other active plans.')}</p> : (
@@ -294,10 +301,10 @@ function CancelDialog({ gymId, sub, canRefund, onClose, onDone }) {
   const [toCredit, setToCredit] = useState(false);
   const [reason, setReason] = useState('');
   const { busy, error, run } = useSubmit(onDone);
-  const submit = (event) => run(event, () => {
+  const submit = (event) => run(event, (idempotencyKey) => {
     const refundMinor = atPeriodEnd ? 0 : toMinor(refund || '0');
     if (!Number.isFinite(refundMinor)) throw new Error(t('Enter a valid refund amount.'));
-    return postJson(gymId, `/subscriptions/${sub.id}/cancel`, { at_period_end: atPeriodEnd, refund_amount_minor: refundMinor, refund_to_credit: toCredit, reason });
+    return postJson(gymId, `/subscriptions/${sub.id}/cancel`, { at_period_end: atPeriodEnd, refund_amount_minor: refundMinor, refund_to_credit: toCredit, reason }, 'POST', { idempotencyKey });
   }, atPeriodEnd ? t('Cancellation scheduled') : t('Membership cancelled'));
   return (
     <Modal title={t('Cancel membership')} description={t('{plan}, paid {amount}.', { plan: sub.plan.name, amount: formatMoney(sub.amount_paid) })} onClose={onClose}>
@@ -340,23 +347,17 @@ function PanelSkeleton() {
 export function MembershipPanel({ gymId, userId, initialDialog = null }) {
   const { can } = useCapabilities();
   const t = useT();
-  const [data, setData] = useState(null);
-  const [plans, setPlans] = useState([]);
   // Opened straight from the members list (?action=sell / ?action=pay).
   const [dialog, setDialog] = useState(initialDialog);
-  const [error, setError] = useState('');
-
-  const [version, setVersion] = useState(0);
-  const load = () => { setData(null); setVersion((v) => v + 1); };
-
-  useEffect(() => {
-    if (!gymId) return undefined;
-    let cancelled = false;
-    Promise.all([gymFetch(gymId, `/members/${userId}/subscriptions`), gymFetch(gymId, '/plans')])
-      .then(([detail, planList]) => { if (!cancelled) { setData(detail); setPlans(planList); setError(''); } })
-      .catch((e) => { if (!cancelled) setError(e.message); });
-    return () => { cancelled = true; };
-  }, [gymId, userId, version]);
+  // Live: balances and subscription status are never shown from an earlier visit's cache.
+  const { data, error: loadError, mutate } = useApiData(
+    gymId ? `/api/v1/gyms/${gymId}/members/${userId}/subscriptions` : null,
+    { live: true, keepPreviousData: false },
+  );
+  const { data: plans = [] } = useGymData('/plans');
+  const error = errorMessage(loadError);
+  // After a write, show the skeleton until the new balance arrives instead of the old one.
+  const load = () => mutate(undefined, { revalidate: true });
 
   const unfreeze = async () => {
     try { await postJson(gymId, `/subscriptions/${data?.current?.id}/unfreeze`); toast.success(t('Membership unfrozen')); load(); } catch (e) { toast.error(e.message); }

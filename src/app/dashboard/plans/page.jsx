@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Archive, EyeOff, Pencil, Plus, Snowflake, Users } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { ErrorNote, FormField, inputClass, Modal, SubmitButton } from '../../../components/Modal';
 import { SkeletonCards } from '../../../components/Skeleton';
-import { useConfirm } from '../../../components/ConfirmProvider';
 import { useT } from '../../../components/I18nProvider';
 import { formatMoney, fromMinor, gymFetch, postJson, toMinor, useGymId } from '../../lib/gym-api';
+import { removeWithUndo } from '../../lib/undo';
+import { errorMessage, useGymData } from '../../lib/use-gym-data';
 import { useCapabilities } from '../CapabilityProvider';
 
 const DURATION_PRESETS = [[30, '1 month'], [90, '3 months'], [180, '6 months'], [365, '1 year']];
@@ -93,40 +94,39 @@ function PlanForm({ gymId, plan, onClose, onSaved }) {
 export default function PlansPage() {
   const gymId = useGymId();
   const t = useT();
-  const confirm = useConfirm();
   const { can } = useCapabilities();
-  const [plans, setPlans] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [error, setError] = useState('');
-  const [version, setVersion] = useState(0);
-  const load = () => { setPlans(null); setVersion((v) => v + 1); };
+  const { data: plans, error: loadError, mutate } = useGymData(`/plans${showArchived ? '?include_archived=true' : ''}`, { keepPreviousData: false });
+  const error = errorMessage(loadError);
+  const load = () => mutate();
 
-  useEffect(() => {
-    if (!gymId) return undefined;
-    let cancelled = false;
-    gymFetch(gymId, `/plans${showArchived ? '?include_archived=true' : ''}`)
-      .then((list) => { if (!cancelled) { setPlans(list); setError(''); } })
-      .catch((e) => { if (!cancelled) setError(e.message); });
-    return () => { cancelled = true; };
-  }, [gymId, showArchived, version]);
-
-  const archive = async (plan) => {
-    const ok = await confirm({
-      title: t('Remove {name}?', { name: plan.name }),
-      message: t('Plans with members are archived (kept for history) instead of deleted.'),
-      confirmLabel: t('Remove'),
+  // Undo instead of a confirm: the plan disappears now and is only removed when the toast closes.
+  const archive = (plan) => {
+    mutate((list) => list?.filter((p) => p.id !== plan.id), { revalidate: false });
+    removeWithUndo({
+      message: t('{name} removed', { name: plan.name }),
+      description: t('Plans with members are archived (kept for history) instead of deleted.'),
+      undoLabel: t('Undo'),
+      commit: ({ keepalive }) => gymFetch(gymId, `/plans/${plan.id}`, { method: 'DELETE', keepalive }),
+      onUndo: () => mutate(),
+      onCommitted: () => mutate(),
     });
-    if (!ok) return;
-    try {
-      const result = await gymFetch(gymId, `/plans/${plan.id}`, { method: 'DELETE' });
-      toast.success(result.archived ? t('{name} archived', { name: plan.name }) : t('{name} deleted', { name: plan.name }));
-      load();
-    } catch (e) { toast.error(e.message); }
   };
 
+  // Optimistic: show it as active at once, roll back if the server refuses.
   const restore = async (plan) => {
-    try { await postJson(gymId, `/plans/${plan.id}`, { is_active: true }, 'PATCH'); toast.success(t('{name} restored', { name: plan.name })); load(); } catch (e) { toast.error(e.message); }
+    try {
+      await mutate(async (list) => {
+        await postJson(gymId, `/plans/${plan.id}`, { is_active: true }, 'PATCH');
+        return list?.map((p) => (p.id === plan.id ? { ...p, is_active: true } : p));
+      }, {
+        optimisticData: (list) => list?.map((p) => (p.id === plan.id ? { ...p, is_active: true } : p)),
+        rollbackOnError: true,
+        revalidate: true,
+      });
+      toast.success(t('{name} restored', { name: plan.name }));
+    } catch (e) { toast.error(e.message); }
   };
 
   const canManage = can('plans.manage');
@@ -136,7 +136,7 @@ export default function PlansPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="text-sm text-orange-400">{t('Memberships')}</p><h1 className="mt-1 text-3xl font-semibold">{t('Plans')}</h1><p className="mt-1 text-sm text-gray-400">{t('What members can buy, for how long, and the freeze rules.')}</p></div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-gray-400"><input type="checkbox" className="accent-orange-500" checked={showArchived} onChange={(e) => { setPlans(null); setShowArchived(e.target.checked); }} />{t('Show archived')}</label>
+          <label className="flex items-center gap-2 text-sm text-gray-400"><input type="checkbox" className="accent-orange-500" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />{t('Show archived')}</label>
           {canManage && <Button onClick={() => setEditing('new')} className="bg-orange-500 text-black hover:bg-orange-400"><Plus className="mr-1 h-4 w-4" />{t('New plan')}</Button>}
         </div>
       </div>

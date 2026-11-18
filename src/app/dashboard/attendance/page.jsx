@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Download } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
@@ -8,7 +8,8 @@ import { Card } from '../../../components/ui/Card';
 import { DateTimeInput, FormField, inputClass } from '../../../components/Modal';
 import { Skeleton, SkeletonRows } from '../../../components/Skeleton';
 import { useT } from '../../../components/I18nProvider';
-import { addDays, gymFetch, isoDate, useGymId } from '../../lib/gym-api';
+import { addDays, isoDate, useGymId } from '../../lib/gym-api';
+import { errorMessage, useGymData } from '../../lib/use-gym-data';
 
 const dateFmt = (value) => new Date(value).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 const timeFmt = (value) => (value ? new Date(value).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '—');
@@ -30,19 +31,11 @@ export default function AttendancePage() {
   const [to, setTo] = useState(today);
   const [search, setSearch] = useState('');
   const [submitted, setSubmitted] = useState('');
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!gymId) return undefined;
-    let cancelled = false;
-    const query = new URLSearchParams({ date_from: from, date_to: to, page_size: '500' });
-    if (submitted) query.set('search', submitted);
-    gymFetch(gymId, `/attendance?${query}`)
-      .then((result) => { if (!cancelled) { setData(result); setError(''); } })
-      .catch((e) => { if (!cancelled) setError(e.message); });
-    return () => { cancelled = true; };
-  }, [gymId, from, to, submitted]);
+  const query = new URLSearchParams({ date_from: from, date_to: to, page_size: '500' });
+  if (submitted) query.set('search', submitted);
+  // Live: who is in the gym right now is acted on at the desk.
+  const { data, error: loadError } = useGymData(`/attendance?${query}`, { live: true, keepPreviousData: false });
+  const error = errorMessage(loadError);
 
   const exportCsv = () => {
     const anchor = document.createElement('a');
@@ -50,7 +43,7 @@ export default function AttendancePage() {
     anchor.download = `attendance-${from}-to-${to}.csv`;
     anchor.click();
   };
-  const changeDate = (setter) => (e) => { if (e.target.value) { setData(null); setter(e.target.value); } };
+  const changeDate = (setter) => (e) => { if (e.target.value) setter(e.target.value); };
 
   return (
     <div className="space-y-6">
@@ -59,10 +52,10 @@ export default function AttendancePage() {
         {(data?.results?.length ?? 0) > 0 && <Button variant="outline" onClick={exportCsv}><Download className="mr-1 h-4 w-4" />{t('Export CSV')}</Button>}
       </div>
       <Card className="border-white/10 bg-[#151515] p-4">
-        <form className="grid gap-3 sm:grid-cols-2 lg:flex lg:items-end" onSubmit={(e) => { e.preventDefault(); if (search.trim() !== submitted) setData(null); setSubmitted(search.trim()); }}>
+        <form className="grid gap-3 sm:grid-cols-2 lg:flex lg:items-end" onSubmit={(e) => { e.preventDefault(); setSubmitted(search.trim()); }}>
           <FormField label={t('From')}><DateTimeInput type="date" required value={from} max={to} onChange={changeDate(setFrom)} /></FormField>
           <FormField label={t('To')}><DateTimeInput type="date" required value={to} min={from} max={today} onChange={changeDate(setTo)} /></FormField>
-          <FormField label={t('Member')} className="lg:flex-1"><input className={inputClass} value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Name or email')} /></FormField>
+          <FormField label={t('Member')} className="lg:flex-1"><input data-page-search className={inputClass} value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Name or email')} /></FormField>
           <Button type="submit" variant="outline">{t('Filter')}</Button>
         </form>
       </Card>

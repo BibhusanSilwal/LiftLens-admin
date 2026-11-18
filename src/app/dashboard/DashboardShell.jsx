@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { Sidebar } from '../../components/Sidebar';
 import { Header } from '../../components/Header';
 import { ConfirmProvider } from '../../components/ConfirmProvider';
+import { CommandMenu } from '../../components/CommandMenu';
 import { I18nScope } from '../../components/I18nProvider';
 import { CapabilityProvider, useCapabilities } from './CapabilityProvider';
 
 /** Nepali/English switching applies to the gym side only; platform-admin pages stay English. */
 function Scoped({ children }) {
   const { role, loading } = useCapabilities();
-  return <I18nScope enabled={!loading && role !== 'platform_admin'}><ConfirmProvider>{children}</ConfirmProvider></I18nScope>;
+  return <I18nScope enabled={!loading && role !== 'platform_admin'}><ConfirmProvider>{children}<CommandMenu /></ConfirmProvider></I18nScope>;
 }
 
 export default function DashboardShell({ children }) {

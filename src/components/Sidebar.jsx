@@ -7,7 +7,7 @@ import { cn } from '../lib/utils';
 import { useCapabilities } from '../app/dashboard/CapabilityProvider';
 import { useT } from './I18nProvider';
 
-const PLATFORM_ITEMS = [
+export const PLATFORM_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: Activity },
   { href: '/dashboard/users', label: 'User management', icon: UserCog },
   { href: '/dashboard/gyms', label: 'Gym management', icon: Building2 },
@@ -16,7 +16,7 @@ const PLATFORM_ITEMS = [
 ];
 
 // Gym side, ordered by how often the front desk reaches for them.
-const GYM_SECTIONS = [
+export const GYM_SECTIONS = [
   {
     title: 'Front desk',
     items: [
@@ -68,6 +68,13 @@ function NavLink({ item, pathname, onClose, t }) {
   );
 }
 
+/** The nav the signed-in user may see (shared with the command menu). */
+export function navSections(platform, can) {
+  return platform
+    ? [{ title: 'Platform admin', items: PLATFORM_ITEMS }]
+    : GYM_SECTIONS.map((section) => ({ ...section, items: section.items.filter((item) => can(item.capability)) })).filter((section) => section.items.length);
+}
+
 export function Sidebar({ isOpen = false, onClose = () => {} }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -76,9 +83,7 @@ export function Sidebar({ isOpen = false, onClose = () => {} }) {
   const logout = async () => { await fetch('/api/logout', { method: 'POST' }); router.replace('/login'); };
   const platform = role === 'platform_admin';
   const accountName = platform ? (user?.full_name || t('Platform admin')) : (activeGym?.name || user?.full_name || '');
-  const sections = platform
-    ? [{ title: 'Platform admin', items: PLATFORM_ITEMS }]
-    : GYM_SECTIONS.map((section) => ({ ...section, items: section.items.filter((item) => can(item.capability)) })).filter((section) => section.items.length);
+  const sections = navSections(platform, can);
 
   return <>
     <div onClick={onClose} className={cn('fixed inset-0 z-30 bg-black/60 md:hidden', isOpen ? 'block' : 'hidden')} />
