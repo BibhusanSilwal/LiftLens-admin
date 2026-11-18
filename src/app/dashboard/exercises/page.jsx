@@ -43,6 +43,17 @@ const groupOptions = [
   "full_body",
 ];
 
+const equipmentOptions = [
+  "barbell",
+  "dumbbell",
+  "machine",
+  "cable",
+  "kettlebell",
+  "band",
+  "bodyweight",
+  "other",
+];
+
 const difficultyColors = {
   Beginner: "text-green-500",
   Intermediate: "text-yellow-500",
@@ -77,6 +88,7 @@ export default function ExercisesPage() {
     description: "",
     exercise_type: "",
     muscle_group: "",
+    equipment: "other",
     difficulty: "",
     met_value: "",
   });
@@ -86,6 +98,7 @@ export default function ExercisesPage() {
     description: "",
     exercise_type: "",
     muscle_group: "",
+    equipment: "other",
     difficulty: "",
     status: "active",
     met_value: "",
@@ -104,7 +117,7 @@ export default function ExercisesPage() {
       const data = await res.json();
       setExercises(data);
     } catch {
-      alert("Failed to fetch exercises");
+      toast.error("Failed to fetch exercises");
     }
   };
 
@@ -167,6 +180,7 @@ export default function ExercisesPage() {
         description: "",
         exercise_type: "",
         muscle_group: "",
+        equipment: "other",
         difficulty: "",
         met_value: "",
       });
@@ -191,6 +205,7 @@ export default function ExercisesPage() {
         description: data.description || "",
         exercise_type: data.exercise_type || "",
         muscle_group: data.muscle_group || "",
+        equipment: data.equipment || "other",
         difficulty: data.difficulty || "",
         status: data.status || "active",
         met_value:
@@ -234,6 +249,10 @@ export default function ExercisesPage() {
       (selectedExercise.muscle_group || "").toLowerCase()
     ) {
       payload.muscle_group = editFormData.muscle_group.toLowerCase();
+    }
+
+    if (editFormData.equipment !== (selectedExercise.equipment || "other")) {
+      payload.equipment = editFormData.equipment;
     }
 
     if (
@@ -310,7 +329,7 @@ export default function ExercisesPage() {
       setSelectedExercise(null);
       toast.success("Exercise deleted successfully");
     } catch {
-      alert("Failed to delete exercise");
+      toast.error("Failed to delete exercise");
     }
   };
 
@@ -397,6 +416,25 @@ export default function ExercisesPage() {
               </div>
 
               <div>
+                <Label>Equipment</Label>
+                <Select
+                  value={formData.equipment}
+                  onValueChange={(v) => handleSelectChange("equipment", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select equipment" />
+                  </SelectTrigger>
+                  <SelectContent className="z-1000 bg-black text-white border-[#1c1c1e]">
+                    {equipmentOptions.map((e) => (
+                      <SelectItem key={e} value={e}>
+                        {capitalize(e)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label>Difficulty</Label>
                 <Select
                   value={formData.difficulty}
@@ -462,6 +500,7 @@ export default function ExercisesPage() {
               <tr>
                 <th>Name</th>
                 <th>Group</th>
+                <th>Equipment</th>
                 <th>Difficulty</th>
                 <th>MET</th>
                 <th>Status</th>
@@ -476,6 +515,7 @@ export default function ExercisesPage() {
                   <tr key={ex.id}>
                     <td>{ex.name}</td>
                     <td>{capitalize(ex.muscle_group)}</td>
+                    <td>{capitalize(ex.equipment || "other")}</td>
                     <td className={difficultyColors[diffCap]}>
                       {diffCap}
                     </td>
@@ -595,6 +635,25 @@ export default function ExercisesPage() {
                   {groupOptions.map((g) => (
                     <SelectItem key={g} value={g}>
                       {capitalize(g)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Equipment</Label>
+              <Select
+                value={editFormData.equipment}
+                onValueChange={(v) => handleEditSelectChange("equipment", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select equipment" />
+                </SelectTrigger>
+                <SelectContent className="z-1000 bg-black text-white border-[#1c1c1e]">
+                  {equipmentOptions.map((e) => (
+                    <SelectItem key={e} value={e}>
+                      {capitalize(e)}
                     </SelectItem>
                   ))}
                 </SelectContent>

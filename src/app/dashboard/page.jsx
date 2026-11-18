@@ -56,7 +56,7 @@ export default function DashboardOverview() {
     const type = getCookieClient("user-type");
     setUserType(type || 'normal');
     if (type === "gym") {
-      router.replace("/dashboard/users");
+      router.replace("/dashboard/today");
     }
   }, [router]);
 

@@ -35,7 +35,7 @@ export async function POST(request) {
       console.error("Login backend returned a non-JSON response")
     }
   }
-  const { access, refresh, is_admin, user_type } = responseData
+  const { access, refresh, is_admin, user_type, gym_access } = responseData
 
   // Create response
   const nextResponse = NextResponse.json(
@@ -46,7 +46,8 @@ export async function POST(request) {
         : responseData.detail || responseData.message || "Login failed",
       token: access,  // Include token for client if needed (but it's in cookie)
       is_admin: is_admin,
-      user_type: user_type
+      user_type: user_type,
+      gym_access: Boolean(gym_access)
     },
     { status: response.ok ? 200 : 401 }
   )
@@ -54,7 +55,8 @@ export async function POST(request) {
     // Persist the session cookies before returning the successful login response.
     await setToken(access)
     if (refresh) await setRefreshToken(refresh)
-    await setUserType(user_type || "")
+    // Staff accounts are ordinary users with gym access; the dashboard gate only needs to know it's gym-side.
+    await setUserType(gym_access && !is_admin ? "gym" : user_type || "")
     await setIsAdmin(is_admin || false)
   }
   if (response.ok && !access) {

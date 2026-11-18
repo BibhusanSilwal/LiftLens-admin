@@ -41,9 +41,9 @@ export default function LoginPage() {
         }
       }
 
-      if (response.ok && (data.is_admin || data.user_type === 'gym')) { // Check for admin or gym role
+      if (response.ok && (data.is_admin || data.user_type === 'gym' || data.gym_access)) { // platform admin, gym owner or gym staff
         // Redirect to dashboard/users for gym, or dashboard for admin
-        window.location.href = data.user_type === 'gym' ? '/dashboard/users' : '/dashboard';
+        window.location.href = data.is_admin ? '/dashboard' : '/dashboard/today';
       } else if (response.ok) {
         // Fallback: Not admin or gym, but valid user
         toast.error("Access Denied", {
