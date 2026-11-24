@@ -4,15 +4,16 @@ import { getToken } from "@/app/lib/auth";
 const BACKEND_URL = (process.env.BACKEND_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
 const API_PREFIX = "/nutrition"; 
 
-export async function GET() {
+export async function GET(request) {
   try {
     const token = await getToken();
     if (!token) return unauthorized();
 
-    const res = await fetch(`${BACKEND_URL}${API_PREFIX}/foods`, {
+    // search, limit, offset, cuisine, category and source are applied by the backend
+    const { search } = new URL(request.url);
+    const res = await fetch(`${BACKEND_URL}${API_PREFIX}/foods${search}`, {
       headers: { "Authorization": `Bearer ${token}` },
     });
-    console.log(API_PREFIX)
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (error) {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Activity, BarChart3, Bell, Building2, ClipboardList, DoorOpen, Home, Layers, LogOut, Megaphone, QrCode, Settings, ShoppingCart, Tag, UserCog, Users, UsersRound, Wallet, X } from 'lucide-react';
+import { Activity, BarChart3, Bell, Building2, ChartColumn, ClipboardList, DoorOpen, Dumbbell, Home, Layers, LogOut, Megaphone, QrCode, Settings, ShoppingCart, Tag, UserCog, Users, UsersRound, Utensils, Wallet, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useCapabilities } from '../app/dashboard/CapabilityProvider';
 import { useT } from './I18nProvider';
@@ -11,8 +11,11 @@ export const PLATFORM_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: Activity },
   { href: '/dashboard/users', label: 'User management', icon: UserCog },
   { href: '/dashboard/gyms', label: 'Gym management', icon: Building2 },
+  { href: '/dashboard/food', label: 'Food management', icon: Utensils },
+  { href: '/dashboard/exercises', label: 'Exercise management', icon: Dumbbell },
   { href: '/dashboard/notifications', label: 'Notification management', icon: Bell },
   { href: '/dashboard/user-analytics', label: 'User analytics', icon: BarChart3 },
+  { href: '/dashboard/exercise-analytics', label: 'Exercise analytics', icon: ChartColumn },
 ];
 
 // Gym side, ordered by how often the front desk reaches for them.
